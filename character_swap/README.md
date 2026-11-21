@@ -1,0 +1,37 @@
+# Character swap backend
+
+Python 3.10+ and `ffmpeg`/`ffprobe` on PATH are required.
+
+```sh
+python -m venv character_swap/.venv
+character_swap/.venv/bin/pip install -r character_swap/requirements.txt
+export GEMINI_API_KEY=your-key
+character_swap/.venv/bin/python -m character_swap
+```
+
+Runs on 0.0.0.0:8090 (`PORT` overrides). `CHARACTER_SWAP_WORK_DIR` overrides
+`character_swap/.work/`; `CHARACTER_SWAP_DESCRIBE_MODEL` overrides
+`gemini-4-hydrogen`. Swap model defaults to `gemini-omni-1.2-flash`.
+
+API: `POST /api/clips` multipart `video`; POST returned clip ID to
+`/api/clips/{clip_id}/describe` with JPEG `frame` and normalized form `x`, `y`;
+`POST /api/swaps` with `photo` (JPEG/PNG/WebP), `clip_id`, `target`;
+poll `GET /api/swaps/{job_id}` and fetch `video_url` when done.
+Clip response `url` serves the normalized video. OpenAPI: `/docs`.
+
+Videos: <=200 MiB, at least 3 seconds; first 15 seconds retained, H.264,
+long side <=1280. Photos/frames: <=15 MiB, <=30 megapixels. Audio removed from
+input. Output may include generated audio. Replacement keeps target clothes
+and choreography, not necessarily their facial expression or exact pixels.
+Description failures fall back to click position.
+
+Jobs and clip IDs are in memory: use one server process, no reload/workers.
+Restart loses IDs; work files remain. Remove the work directory manually when
+finished. Uploads are sent to Gemini Files API and subject to its retention.
+This lean hackathon service has no auth, quotas or durable queue; run only in
+a trusted environment, not as a public upload service. No frontend yet.
+
+Offline tests (no key/network):
+```sh
+character_swap/.venv/bin/python -m unittest discover -s character_swap/tests -v
+```
