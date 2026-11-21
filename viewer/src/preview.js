@@ -14,7 +14,7 @@ export class StereoPreview {
     this.onError = onError;
     this.failed = false;
     this.frame = (time) => {
-      if (this.video.readyState >= 2 && !this.failed && !document.hidden) {
+      if (this.mode !== "lookaround" && this.video.readyState >= 2 && !this.failed && !document.hidden) {
         try {
           this.draw(time);
         } catch (error) {

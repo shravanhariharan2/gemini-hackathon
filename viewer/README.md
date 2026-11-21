@@ -1,7 +1,7 @@
 # Spatial clip viewer
 
-An isolated Vite/Three.js app for **full-width side-by-side stereo MP4**, left eye
-on the left. No dependency on the rest of the platform and no backend required.
+An isolated Vite/Three.js app for **depth-surface video** on a normal screen and
+**full-width side-by-side stereo MP4** in a headset. No backend required.
 
 ```sh
 cd viewer
@@ -32,7 +32,7 @@ window.location.href = viewer;
 Example: `/viewer/?src=https%3A%2F%2Fcdn.example.com%2Fclip-sbs.mp4&title=Highlight`.
 The link points to a directly playable file, not a web page or an HLS playlist.
 The viewer also opens local files (not uploaded). It opens with the real five-second
-flower clip converted by this project's AI-depth stereo generator. The calibration
+flower RGB+depth clip converted by this project's AI-depth generator. The calibration
 cube button opens the original six-second synthetic stereo camera pair. No AI
 provider calls are made by the viewer itself.
 
@@ -49,8 +49,10 @@ Media contract:
 
 ## No-headset checks
 
+- **Look around (default):** reconstructs a moving 3D surface from RGB + depth.
+  See the contract and controls below. Requires the depth export, not just SBS.
 - **2D preview:** crops the left eye at its correct aspect ratio.
-- **Wiggle (default):** alternates the same frame's eyes every 170ms; works while
+- **Wiggle (stereo default):** alternates the same frame's eyes every 170ms; works while
   paused too. Reduced-motion users start in 2D and can explicitly choose wiggle.
 - **Red / cyan:** grayscale anaglyph, red lens on the left eye. Without inexpensive
   filter glasses it shows stereo offsets but cannot give binocular depth perception.
@@ -59,6 +61,53 @@ Media contract:
   translations and unrelated imagery inconclusive. This is only a signal heuristic,
   not validation of geometry, eye order, temporal stability, or comfort. Check several
   representative moments, including motion and occlusion edges.
+
+## Fullscreen look-around / projector demo
+
+Open the page or press **Look-around demo**. Drag the picture (touch works too),
+or focus it and use the arrow keys. **Auto orbit** gently moves the virtual camera
+without input; it starts enabled unless reduced motion is requested. **Play clip**
+animates the video; perspective controls also work while paused. **Reset view**
+stops orbit/tilt and returns to the original viewpoint. **2D · flat** provides a
+comparison. **Depth relief** adjusts the surface strength down to a flat plane.
+Fullscreen keeps play, orbit, reset, tilt and exit controls inside the picture.
+
+**Enable tilt** uses a phone's device orientation, with an explicit motion-permission
+request on iOS. The starting phone angle is neutral. Drag remains available if
+permission is refused, sensors are missing, or motion events never arrive. This
+requires HTTPS (or localhost). Physical phone/sensor behavior needs device testing.
+
+Generate the companion export with `python -m stereo_generator input.mp4 stereo.mp4
+--rgb-depth depth.mp4`. This preserves the SBS export unchanged. Open it as:
+
+```js
+viewer.searchParams.set('rgbd', clip.rgb_depth_mp4_url); // instead of `src`
+viewer.searchParams.set('title', clip.title);
+```
+
+Example: `/viewer/?rgbd=https%3A%2F%2Fcdn.example.com%2Fclip-depth.mp4`.
+For files or the URL form, select **Depth video · RGB / depth** before opening.
+
+RGB+depth contract (separate from the stereo contract):
+
+- One H.264/yuv420p MP4, **unwarped RGB on the left**, grayscale relative inverse
+  depth on the right, equal dimensions; **white = near, black = far**.
+- RGB and depth must be aligned at every pixel and every frame. One video element
+  supplies both textures, so playback, pause, seek, and audio share one clock.
+- Both halves need the same upright orientation. Use global depth normalization
+  across the clip to reduce depth pumping; no metric distances are assumed.
+- The same finite duration, even width, CORS and HTTPS rules apply.
+- Never label an SBS file as RGB+depth. The app does not infer formats; stereo
+  modes and WebXR are intentionally unavailable for RGB+depth, while look-around
+  is unavailable for SBS. **Flower stereo** restores all original stereo modes.
+
+The WebGL renderer projects a 192×108 subdivided mesh along the source camera
+rays, displacing it with each frame's depth, then moves a bounded virtual camera.
+This is **2.5D reprojection, not volumetric reconstruction or 360° video**: it cannot
+reveal unseen sides of objects. Occlusion boundaries may stretch and large depth
+errors can distort the image. Small camera motion and overscan limit these artifacts.
+This mode demonstrates changing perspective on a monitor, not binocular perception
+or headset comfort. WebGL failure falls back to the original flat RGB frame.
 
 ## WebXR
 
