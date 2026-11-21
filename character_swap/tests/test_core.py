@@ -40,13 +40,39 @@ class CoreTests(unittest.TestCase):
 
     def test_prepare_rotation(self):
         source = self.clip()
-        rotated = self.root / 'rotated.mp4'
-        subprocess.run(['ffmpeg', '-v', 'error', '-i', str(source), '-c', 'copy',
-                        '-metadata:s:v:0', 'rotate=90', str(rotated)], check=True)
-        out = self.root / 'out.mp4'
-        self.assertEqual(core.prepare_clip(rotated, out)['aspect_ratio'], '9:16')
-        stream = core._probe(out)['streams'][0]
-        self.assertGreater(stream['height'], stream['width'])
+        help_text = subprocess.check_output(
+            ['ffmpeg', '-hide_banner', '-h', 'full'], stderr=subprocess.STDOUT, text=True)
+        for angle in (90, -90):
+            with self.subTest(angle=angle):
+                rotated = self.root / f'rotated-{angle}.mp4'
+                command = ['ffmpeg', '-v', 'error']
+                if '-display_rotation' in help_text:
+                    command += ['-display_rotation:v:0', str(angle), '-i', str(source),
+                                '-c', 'copy']
+                else:
+                    command += ['-i', str(source), '-c', 'copy',
+                                '-metadata:s:v:0', f'rotate={angle}']
+                subprocess.run(command + [str(rotated)], check=True)
+                stream = core._probe(rotated)['streams'][0]
+                self.assertEqual((stream['width'], stream['height']), (320, 180))
+                self.assertTrue(any(abs(side.get('rotation', 0)) == 90
+                                    for side in stream.get('side_data_list', [])),
+                                'Fixture must have rotation metadata, not rotated pixels')
+                out = self.root / f'out-{angle}.mp4'
+                self.assertEqual(core.prepare_clip(rotated, out)['aspect_ratio'], '9:16')
+                stream = core._probe(out)['streams'][0]
+                self.assertGreater(stream['height'], stream['width'])
+
+    def test_rotation_metadata_formats(self):
+        for metadata in ({'tags': {'rotate': '90'}},
+                         {'tags': {'rotate': '-90'}},
+                         {'side_data_list': [{'rotation': -90}]},
+                         {'tags': {'rotate': '0'}, 'side_data_list': [{'rotation': 90}]}):
+            with self.subTest(metadata=metadata):
+                stream = {'codec_type': 'video', 'duration': '3',
+                          'width': 320, 'height': 180, **metadata}
+                with patch.object(core, '_probe', return_value={'streams': [stream]}):
+                    self.assertEqual(core._video_info('clip'), (3, '9:16'))
 
     def test_prepare_rejects_short_and_invalid(self):
         with self.assertRaisesRegex(ValueError, 'at least 3'):
