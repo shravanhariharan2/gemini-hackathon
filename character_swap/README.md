@@ -18,7 +18,10 @@ toggle, and an MP4 download. Camera access requires localhost or HTTPS and permi
 Use clear, well-lit front, 3/4 and side views for a better likeness. Remove a
 thumbnail to replace it. Clips are trimmed to the first 10 seconds.
 
-Known limit: Omni replaces the head/identity; the original body and clothing stay.
+The edit requests whole-person replacement: identity, body/build, chest, skin tone
+across all visible skin, and clothing follow the references, not the original target.
+Motion, pose, timing and scene remain. Target outfit descriptions only locate the
+person; they do not pin the outfit. Results are generative and may need a retry.
 Generation takes about 50 seconds per 8-second clip (allow roughly a minute).
 The bundled demo is by [Anna Shvets, Pexels](https://www.pexels.com/video/two-women-dancing-and-hugging-4800574/),
 used under the [Pexels license](https://www.pexels.com/license/).

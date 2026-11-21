@@ -91,6 +91,15 @@ class CoreTests(unittest.TestCase):
                      'jawline', 'skin tone', 'hair', 'glasses', 'facial hair',
                      'scene lighting', 'color grading', 'do not relight or recolor']:
             self.assertIn(text, prompt)
+        for text in ['Replace the ENTIRE person, not just their face or head',
+                     'gender presentation', 'full body shape and build, chest',
+                     'clothing must follow the reference person',
+                     "Match the reference person's skin tone and complexion across ALL visible skin",
+                     'face, neck, chest, torso, arms, hands and legs',
+                     "Do not carry over the original target's skin tone",
+                     'ONLY a locator', 'Keep the original motion, pose and body choreography']:
+            self.assertIn(text, prompt)
+        self.assertNotIn('Keep the target clothing', prompt)
 
     def client(self):
         client = Mock()
