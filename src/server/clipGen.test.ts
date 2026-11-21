@@ -3,8 +3,28 @@ import assert from 'node:assert/strict';
 import express from 'express';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import path from 'node:path';
-import { buildPrompt, describePerson, jobError, validateUpload } from './clipGen';
+import { buildPrompt, createClipGenClient, describePerson, jobError, validateUpload } from './clipGen';
 import { createClipGenRouter } from './clipGenRoutes';
+
+test('Clip Gen uses v1beta for both Files and Interactions requests', async (t) => {
+  const key = process.env.GEMINI_API_KEY;
+  process.env.GEMINI_API_KEY = 'offline-test-key';
+  const urls: string[] = [];
+  t.mock.method(globalThis, 'fetch', async (input: RequestInfo | URL) => {
+    urls.push(input instanceof Request ? input.url : String(input));
+    return new Response(JSON.stringify({ error: { code: 400, message: 'offline test' } }), { status: 400, headers: { 'content-type': 'application/json' } });
+  });
+  try {
+    const client = createClipGenClient();
+    await assert.rejects(client.files.get({ name: 'files/test' }));
+    await assert.rejects(client.interactions.create({ model: 'gemini-omni-1.2-flash', input: 'test', store: false }));
+    assert.deepEqual(urls.map(url => new URL(url).pathname), ['/v1beta/files/test', '/v1beta/interactions']);
+  } finally {
+    if (key === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = key;
+    t.mock.restoreAll();
+  }
+});
 
 test('maps safety errors including nested details and preserves other failures', () => {
   for (const error of [new Error('CONTENT_BLOCKED'), { details: { error: { message: 'responsible AI' } } }, new Error('Gemini returned no video; the request may have been filtered')]) assert.equal(jobError(error).error_code, 'content_blocked');

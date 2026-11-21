@@ -61,7 +61,7 @@ export async function prepareClip(src: string, dst: string) {
 }
 export function createClipGenClient() {
   if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is required for live calls');
-  return new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  return new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY, apiVersion: 'v1beta' });
 }
 export type ClipGenClient = ReturnType<typeof createClipGenClient>;
 export async function describePerson(frame: string, x: number, y: number, factory = createClipGenClient) {
