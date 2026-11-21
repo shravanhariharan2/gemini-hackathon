@@ -55,6 +55,15 @@ class APITests(unittest.TestCase):
                                     'video_url': f'/api/swaps/{job["job_id"]}/video'})
             self.assertEqual(self.client.get(final['video_url']).content, b'generated video')
 
+    def test_page_and_demo(self):
+        page = self.client.get('/')
+        self.assertEqual(page.status_code, 200)
+        self.assertIn('Who to replace', page.text)
+        demo = self.client.get('/demo/dancers.mp4')
+        self.assertEqual(demo.status_code, 200)
+        self.assertEqual(demo.headers['content-type'], 'video/mp4')
+        self.assertGreater(len(demo.content), 1000)
+
     def test_errors(self):
         self.assertEqual(self.client.get('/api/swaps/missing').status_code, 404)
         self.assertEqual(self.client.get('/api/clips/missing/video').status_code, 404)
