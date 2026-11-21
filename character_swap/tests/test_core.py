@@ -102,6 +102,7 @@ class CoreTests(unittest.TestCase):
         self.assertNotIn('Keep the target clothing', prompt)
         self.assertIn('wrists, fingers, ankles, feet and toes', prompt)
         self.assertIn('no original skin patches or original limbs may remain', prompt)
+        self.assertIn('full-length bottoms and closed shoes appropriate to that outfit', prompt)
 
     def client(self):
         client = Mock()
