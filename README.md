@@ -1,3 +1,20 @@
+# Clip Gen
+
+Open `/clip-gen` for isolated Gemini Omni character replacement (no studio imports).
+Requires `ffmpeg`/`ffprobe` on PATH and server-side `GEMINI_API_KEY`.
+Upload a video or use the sample, click a person, refine the description, add 1–3
+reference photos or camera selfies, then swap. Compare synchronized results or download MP4.
+Videos: at least 3 seconds, up to 200 MiB; first 10 seconds normalized to silent H.264.
+Photos: JPEG/PNG/WebP, up to 15 MiB and 30 megapixels each. Public figures may be blocked.
+Use photos you have permission to use; generation usually takes about a minute.
+Camera requires localhost or HTTPS. Description failures fall back to click position.
+`CLIP_GEN_WORK_DIR` defaults to gitignored `.data/clip-gen`; `CLIP_GEN_DESCRIBE_MODEL`
+defaults to `gemini-4-hydrogen`. Jobs/IDs are in memory; restart loses them, files remain.
+Remove work files manually when finished. Uploads go to Gemini Files API and its retention applies.
+This trusted-environment prototype has no authentication, quotas or durable queue.
+Sample: [Anna Shvets, Pexels](https://www.pexels.com/video/two-women-dancing-and-hugging-4800574/),
+under the [Pexels license](https://www.pexels.com/license/).
+
 # ClipThat
 
 **ClipThat** is a modern multi-user live streaming studio built with React, TypeScript, Express, WebSockets, and WebRTC. Multiple hosts and co-hosts can stream audio, video, and screens together while viewers watch and interact in real-time chat.

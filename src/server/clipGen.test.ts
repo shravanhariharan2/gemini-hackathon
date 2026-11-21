@@ -1,0 +1,45 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import express from 'express';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import path from 'node:path';
+import { buildPrompt, describePerson, jobError, validateUpload } from './clipGen';
+import { createClipGenRouter } from './clipGenRoutes';
+
+test('maps safety errors including nested details and preserves other failures', () => {
+  for (const error of [new Error('CONTENT_BLOCKED'), { details: { error: { message: 'responsible AI' } } }, new Error('Gemini returned no video; the request may have been filtered')]) assert.equal(jobError(error).error_code, 'content_blocked');
+  assert.deepEqual(jobError(new Error('network unavailable')), { error: 'network unavailable' });
+});
+test('prompt preserves original scene and names only the selected target', () => {
+  const prompt = buildPrompt('the dancer on the left');
+  assert.ok(prompt.startsWith('Edit the supplied video. Replace ONLY the dancer on the left with the person in the reference images'));
+  assert.ok(prompt.includes('Keep the target clothing and body choreography.'));
+  assert.ok(prompt.endsWith('Do not add people or cuts.'));
+});
+test('upload validation covers normal, empty, oversized and unsupported input', () => {
+  assert.doesNotThrow(() => validateUpload(10, 'video/mp4', 10, ['video/mp4']));
+  for (const [size, type] of [[0, 'video/mp4'], [11, 'video/mp4'], [1, 'text/html']] as const) assert.throws(() => validateUpload(size, type, 10, ['video/mp4']));
+});
+test('description falls back on missing client and empty model response', async () => {
+  assert.equal(await describePerson('missing', .25, .5, () => { throw new Error('offline'); }), 'the person at about 25% from the left and 50% from the top of the frame');
+});
+test('isolated routes validate uploads and run background jobs with stubbed media and Gemini', async () => {
+  await mkdir('.data', { recursive: true });
+  const root = await mkdtemp(path.resolve('.data/clip-gen-test-'));
+  const app = express();
+  app.use('/api/clip-gen', createClipGenRouter({ prepareClip: async () => ({ duration: 8, aspect_ratio: '16:9' }), validateImage: async () => {}, describePerson: async () => 'left dancer', client: () => ({} as never), swapCharacter: async () => ({ seconds: 1 }) }, root));
+  const server = app.listen(0); await new Promise<void>(r => server.once('listening', r));
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/clip-gen`;
+  try {
+    assert.equal((await fetch(`${base}/swaps/missing`)).status, 404);
+    assert.equal((await fetch(`${base}/clips`, { method: 'POST', body: new FormData() })).status, 422);
+    const upload = new FormData(); upload.append('video', new Blob(['video'], { type: 'video/mp4' }), 'test.mp4');
+    const response = await fetch(`${base}/clips`, { method: 'POST', body: upload }); assert.equal(response.status, 200);
+    const clip = await response.json(); assert.equal(clip.duration, 8);
+    const bad = new FormData(); bad.append('clip_id', clip.clip_id); bad.append('target', ' ');
+    assert.equal((await fetch(`${base}/swaps`, { method: 'POST', body: bad })).status, 422);
+    const form = new FormData(); form.append('clip_id', clip.clip_id); form.append('target', 'left dancer'); form.append('photo', new Blob(['photo'], { type: 'image/jpeg' }), 'face.jpg');
+    const { job_id } = await (await fetch(`${base}/swaps`, { method: 'POST', body: form })).json();
+    const job = await (await fetch(`${base}/swaps/${job_id}`)).json(); assert.equal(job.status, 'done'); assert.equal(job.seconds, 1);
+  } finally { await new Promise<void>(r => server.close(() => r())); await rm(root, { recursive: true, force: true }); }
+});

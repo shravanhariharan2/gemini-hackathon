@@ -176,6 +176,7 @@ export function JoinStreamGate({
           <span className="w-2.5 h-2.5 rounded-full bg-rose-600" aria-hidden="true" />
           <span className="font-display font-bold tracking-tight text-slate-950 text-lg">
             ClipThat
+            <a href="/clip-gen" className="ml-5 text-sm font-medium text-slate-500 hover:text-slate-950">Clip Gen ↗</a>
           </span>
         </div>
 

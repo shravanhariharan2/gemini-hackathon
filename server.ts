@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { createClipGenRouter } from './src/server/clipGenRoutes';
 import { requireProfileOrigin } from './src/server/profileOrigin';
 import { createItemDetectionRouter } from './src/server/itemDetectionRoutes';
 import { createShopRouter } from './src/server/shopRoutes';
@@ -222,6 +223,7 @@ async function startServer() {
     next();
   });
   app.use('/api/shop', createItemDetectionRouter());
+  app.use('/api/clip-gen', createClipGenRouter());
   app.use(express.json({ limit: '256kb' }));
   app.use('/api/shop', createShopRouter());
 

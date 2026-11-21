@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ClipGenPage } from './components/ClipGenPage';
 import { JoinStreamGate } from './components/JoinStreamGate';
 import { LiveChatPanel } from './components/LiveChatPanel';
 import { LiveStage } from './components/LiveStage';
@@ -39,6 +40,10 @@ async function copyTextReliable(text: string): Promise<boolean> {
 }
 
 export default function App() {
+  return window.location.pathname === '/clip-gen' ? <ClipGenPage /> : <StudioApp />;
+}
+
+function StudioApp() {
   const studio = useStudioRoom(getInitialRoomFromUrl());
   const [showRoomSwitcher, setShowRoomSwitcher] = useState(false);
   const [theaterMode, setTheaterMode] = useState(false);
