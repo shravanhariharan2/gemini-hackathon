@@ -1,5 +1,19 @@
 # Clip Gen
 
+## 3D View
+
+Open `/3d` for the isolated spatial viewer: bundled flower depth/stereo demos,
+local files (never uploaded), URL loading (`?src=` stereo or `?rgbd=` RGB+depth),
+look-around relief, 2D, wiggle, red/cyan glasses and frame signal checks.
+The original vanilla Three.js modules run in an iframe to isolate styles and
+release their document/listeners on unmount. WebGL and media resources are
+also released on page exit. Chrome matches the studio's white/slate palette.
+Enter VR / Open in AR enable only for a supported WebXR immersive session and
+stereo media; use HTTPS or localhost and a compatible headset browser.
+RGB+depth is 2.5D reprojection, not volumetric or 360° video. Headset perception,
+comfort and physical phone tilt require real-device testing. Cross-origin
+videos must permit CORS; stereo is full-width left-eye/right-eye SBS.
+
 Open `/clip-gen` for isolated Gemini Omni character replacement (no studio imports).
 Requires `ffmpeg`/`ffprobe` on PATH and server-side `GEMINI_API_KEY`.
 Upload a video or use the sample, click a person, refine the description, add 1–3

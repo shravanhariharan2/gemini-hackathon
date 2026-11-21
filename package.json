@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "tsx --test src/utils/streamUtils.test.ts src/utils/audioRelay.test.ts src/utils/roomLifecycle.test.ts src/utils/studioShortcuts.test.ts src/server/shopMcp.test.ts src/server/itemDetection.test.ts src/server/profileOrigin.test.ts src/server/clipGen.test.ts"
+    "test": "tsx --test src/utils/streamUtils.test.ts src/utils/audioRelay.test.ts src/utils/roomLifecycle.test.ts src/utils/studioShortcuts.test.ts src/server/shopMcp.test.ts src/server/itemDetection.test.ts src/server/profileOrigin.test.ts src/server/clipGen.test.ts src/viewer3d/test/*.test.js"
   },
   "dependencies": {
     "@google/genai": "^3.6.1",
@@ -24,6 +24,7 @@
     "multer": "^2.5.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
+    "three": "0.180.0",
     "tsx": "^4.21.0",
     "vite": "^8.3.0",
     "ws": "^8.23.0"

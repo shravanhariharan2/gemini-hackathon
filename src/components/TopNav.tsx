@@ -33,6 +33,7 @@ export function TopNav({
 
       {/* Zone 2: Clean single-line room actions */}
       <nav aria-label="Studio actions" className="flex items-center gap-3.5 sm:gap-6 md:gap-7">
+        <a href="/3d" className="text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-950 whitespace-nowrap">3D View</a>
         <a href="/clip-gen" className="text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-950 whitespace-nowrap">Clip Gen</a>
         <button
           type="button"
