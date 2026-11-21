@@ -17,7 +17,7 @@ document.querySelector<HTMLButtonElement>('#run')!.onclick = async () => {
   const stage = createStageCapture();
   let recorder: MediaRecorder | undefined;
   try {
-    stage.update([{ stream: board.stream, name: 'Soundboard recording test' }]);
+    stage.update([{ id: 'self', stream: board.stream, name: 'Soundboard recording test' }]);
     recorder = new MediaRecorder(stage.stream, { mimeType: 'video/webm;codecs=vp8,opus' });
     const chunks: Blob[] = [];
     recorder.ondataavailable = e => chunks.push(e.data);

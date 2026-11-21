@@ -55,7 +55,7 @@ export default function App() {
 
 function StudioApp() {
   const studio = useStudioRoom(getInitialRoomFromUrl());
-  const clipper = useAutoClipper({ soundboardPlaying: !!studio.soundboardPlaying, active: studio.hasJoined && studio.isLive && studio.selfRole !== 'viewer', roomId: studio.roomId, localStream: studio.localStream, remoteStreams: studio.remoteStreams, participants: studio.participants, selfName: studio.selfName, messages: studio.chatMessages });
+  const clipper = useAutoClipper({ soundboardPlaying: !!studio.soundboardPlaying, active: studio.hasJoined && studio.isLive && studio.selfRole !== 'viewer', roomId: studio.roomId, localStream: studio.localStream, remoteStreams: studio.remoteStreams, remoteRelayFrames: studio.remoteRelayFrames, participants: studio.participants, selfName: studio.selfName, messages: studio.chatMessages });
   const [showMyClips, setShowMyClips] = useState(new URLSearchParams(window.location.search).get('view') === 'clips');
   const [showRoomSwitcher, setShowRoomSwitcher] = useState(false);
   const [theaterMode, setTheaterMode] = useState(false);

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { registerClipSink } from '../services/clipSink';
 import { RollingRecorder, type BufferedMedia } from '../services/rollingRecorder';
-import { createStageCapture } from '../services/stageCapture';
+import { createStageCapture, selectStageSources } from '../services/stageCapture';
 import { DEFAULT_RULES, DEFAULT_THRESHOLDS, probability, soundboardTrigger, type ClipResult, type ClipRules, type ClipThresholds, type ClipStage, type SavedClip } from '../shared/clipping';
 import type { ChatMessage, RoomParticipant } from '../utils/types';
 
@@ -9,8 +9,9 @@ const clipDebug = (event: string, fields: Record<string, unknown> = {}) => {
   if (import.meta.env.DEV) console.debug('[clipping]', { timestamp: new Date().toISOString(), event, ...fields });
 };
 
+const noRelayFrames: Record<string, string> = {};
 export interface ImportableClip { id: string; runId: string; clipId: number; title: string; start: number; end: number }
-interface Options { soundboardPlaying?: boolean; active: boolean; roomId: string; localStream: MediaStream | null; remoteStreams: Record<string, MediaStream>; participants: RoomParticipant[]; selfName: string; messages: ChatMessage[] }
+interface Options { soundboardPlaying?: boolean; active: boolean; roomId: string; localStream: MediaStream | null; remoteStreams: Record<string, MediaStream>; remoteRelayFrames?: Record<string, string>; participants: RoomParticipant[]; selfName: string; messages: ChatMessage[] }
 export async function toBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onerror = () => reject(new Error('Could not read recording.')); reader.onload = () => resolve(String(reader.result).split(',')[1]); reader.readAsDataURL(blob); });
 }
@@ -83,10 +84,13 @@ export function useAutoClipper(options: Options) {
     } catch (e) { capture.current?.stop(); capture.current = null; setError((e as Error).message); setRecording(false); }
   }, [options.active, options.roomId, !!options.localStream, cancelSession]);
 
+  const relayFrames = options.remoteRelayFrames || noRelayFrames;
+  const relayGuests = Object.keys(relayFrames).sort().join(',');
   useEffect(() => {
     if (!capture.current || !options.localStream) return;
-    capture.current.update([{ stream: options.localStream, name: options.selfName || 'You' }, ...Object.entries(options.remoteStreams).map(([id, stream]) => ({ stream, name: options.participants.find(p => p.id === id)?.name || 'Guest' }))]);
-  }, [options.localStream, options.remoteStreams, options.participants, options.selfName, options.active, options.roomId]);
+    capture.current.update(selectStageSources({ localStream: options.localStream, selfName: options.selfName, remoteStreams: options.remoteStreams, relayFrames, participants: options.participants }));
+  }, [options.localStream, options.remoteStreams, options.participants, options.selfName, options.active, options.roomId, relayGuests]);
+  useEffect(() => { capture.current?.setRelayFrames(relayFrames); }, [relayFrames, options.localStream, options.active, options.roomId]);
 
   const analyze = useCallback(async (media: BufferedMedia, stage: ClipStage, source: string, token: number) => {
     if (token !== generation.current) return null;
