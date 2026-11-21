@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { readFile, writeFile } from 'node:fs/promises';
+import { getFfmpegPath, getFfprobePath } from './clipMedia';
 
 const exec = promisify(execFile);
 export const videoTypes = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska'];
@@ -32,15 +33,18 @@ export function buildPrompt(target: string) {
   return `Edit the supplied video. Replace ONLY ${target} with the person in the reference images, which all show the same person. Replace the ENTIRE person, not just their face or head: face, hair, gender presentation, full body shape and build, chest, torso, arms, hands, legs, feet, and clothing must follow the reference person. Reproduce their facial identity precisely in every frame, including turns: face shape, eyes, nose, mouth, jawline, hair, glasses and facial hair. Match the reference person's skin tone and complexion across ALL visible skin: face, neck, chest, torso, arms, hands and legs, including wrists, fingers, ankles, feet and toes. Reconstruct one coherent reference person from head to toe; no original skin patches or original limbs may remain. In particular, bare feet and hands must have the same underlying complexion as the reference face and arms, allowing only natural lighting variation, never the original target's lighter or darker skin. Do not carry over the original target's skin tone, complexion, body shape, chest anatomy or outfit. Use the reference person's clothing where visible; infer suitable, fully covering clothing consistent with that person's presentation for parts not shown. When the reference does not show the lower body or footwear, complete the reference person's outfit with full-length bottoms and closed shoes appropriate to that outfit, instead of retaining the target's cropped trousers, exposed ankles or bare feet. Do not preserve the original silhouette or original limb pixels for temporal consistency; regenerate the whole replacement person coherently in every frame. A target description mentioning clothing, hair, skin or gender is ONLY a locator for selecting the original person, never an instruction to preserve those attributes. For any direction of gender presentation change, replace the original torso, chest and gendered garments with anatomy and clothing appropriate to the reference person; do not retain breasts, a bra or crop top from the original when inconsistent with the reference. Keep the original motion, pose and body choreography, adapted naturally to the replacement person's build. Keep the original scene lighting, color grading and other people unchanged; do not relight or recolor the scene, but render the reference person's own skin tone under that lighting. Preserve camera, background, timing, duration, framing and all original motions. Do not add people or cuts.`;
 }
 async function probe(file: string) {
-  try { return JSON.parse((await exec('ffprobe', ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', file], { timeout: 30000 })).stdout); }
-  catch { throw new ClipGenError(400, 'Could not read media metadata'); }
+  try { return JSON.parse((await exec(getFfprobePath(), ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', file], { timeout: 30000 })).stdout); }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw new ClipGenError(503, 'Media tools unavailable. Install dependencies including ffmpeg-static and ffprobe-static, or configure FFMPEG_PATH and FFPROBE_PATH.');
+    throw new ClipGenError(400, 'Could not read media metadata');
+  }
 }
 export async function validateImage(file: string, types = imageTypes) {
   const p = await probe(file);
   const s = p.streams?.find((s: { codec_type: string }) => s.codec_type === 'video');
   const codecs = types.map(t => ({ 'image/jpeg': 'mjpeg', 'image/png': 'png', 'image/webp': 'webp' })[t]);
   if (!s || !codecs.includes(s.codec_name) || s.width * s.height > 30000000) throw new ClipGenError(400, 'Invalid image');
-  try { await exec('ffmpeg', ['-v', 'error', '-i', file, '-frames:v', '1', '-f', 'null', '-'], { timeout: 30000 }); }
+  try { await exec(getFfmpegPath(), ['-v', 'error', '-i', file, '-frames:v', '1', '-f', 'null', '-'], { timeout: 30000 }); }
   catch { throw new ClipGenError(400, 'Invalid image'); }
 }
 export async function prepareClip(src: string, dst: string) {
@@ -54,7 +58,7 @@ export async function prepareClip(src: string, dst: string) {
   for (const side of s.side_data_list || []) rotation = Number(side.rotation ?? rotation);
   const landscape = Math.abs(Math.round(rotation)) % 180 === 90 ? s.height >= s.width : s.width >= s.height;
   try {
-    await exec('ffmpeg', ['-v', 'error', '-y', '-i', src, '-t', '10', '-map', '0:v:0', '-an', '-vf', "scale=w='min(1280,iw)':h='min(1280,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1", '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', dst], { timeout: 300000 });
+    await exec(getFfmpegPath(), ['-v', 'error', '-y', '-i', src, '-t', '10', '-map', '0:v:0', '-an', '-vf', "scale=w='min(1280,iw)':h='min(1280,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1", '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', dst], { timeout: 300000 });
   } catch { throw new ClipGenError(400, 'Could not normalize video'); }
   const output = await probe(dst);
   return { duration: Number(output.format.duration), aspect_ratio: landscape ? '16:9' : '9:16' };

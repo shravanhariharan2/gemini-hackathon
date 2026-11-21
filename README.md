@@ -14,9 +14,12 @@ RGB+depth is 2.5D reprojection, not volumetric or 360° video. Headset perceptio
 comfort and physical phone tilt require real-device testing. Cross-origin
 videos must permit CORS; stereo is full-width left-eye/right-eye SBS.
 
-Open `/clip-gen` for isolated Gemini Omni character replacement (no studio imports).
-Requires `ffmpeg`/`ffprobe` on PATH and server-side `GEMINI_API_KEY`.
-Upload a video or use the sample, click a person, refine the description, add 1–3
+Open `/clip-gen` for isolated Gemini Omni character replacement.
+Clip Gen uses packaged `ffmpeg-static`/`ffprobe-static` binaries (system fallback),
+with optional `FFMPEG_PATH`/`FFPROBE_PATH` overrides and server-side `GEMINI_API_KEY`.
+Production installs must include these dependencies and allow their binary installation scripts.
+Upload a video, use the sample, or choose a saved video from **My clips** (the same
+browser-owned `/api/clips/library` used by the studio). Then click a person, refine the description, add 1–3
 reference photos or camera selfies, then swap. Compare synchronized results or download MP4.
 The edit requests whole-person replacement: identity, body/build, chest, all visible
 skin tone and clothing follow the references. Target outfit descriptions locate the

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { ClipGenMyClips } from './ClipGenMyClips';
+import type { SavedClip } from '../shared/clipping';
 
 const button = 'inline-flex items-center justify-center rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed';
 const card = 'rounded-2xl border border-slate-200 bg-white p-5 space-y-4';
@@ -25,6 +27,15 @@ export function ClipGenPage() {
   useEffect(() => { if (selfie.current) selfie.current.srcObject = camera; }, [camera]);
   const closeCamera = () => { cameraRef.current?.getTracks().forEach(t => t.stop()); setCamera(null); };
   const fail = (e: unknown) => setError(e instanceof Error ? e.message : String(e));
+  async function loadSaved(saved: SavedClip) {
+    setBusy(true); setError(''); setStatus('Loading your saved clip…');
+    try {
+      const response = await fetch(saved.url);
+      if (!response.ok) throw new Error('Could not load this saved clip. It may have been deleted.');
+      const blob = await response.blob();
+      await load(new File([blob], `${saved.id}.webm`, { type: 'video/webm' }));
+    } catch (e) { fail(e); } finally { setBusy(false); }
+  }
   async function load(file: File, isSample = false) {
     setBusy(true); setError(''); setClip(null); setTarget(''); setResult(''); setMarker(null); serial.current++;
     setStatus('Uploading and preparing your clip…');
@@ -88,6 +99,7 @@ export function ClipGenPage() {
           <div className="min-h-52 rounded-xl bg-slate-950 flex items-center justify-center overflow-hidden">{clip ? <div className="relative w-full"><video ref={video} src={clip.url} playsInline className="w-full cursor-crosshair" onClick={pick} onPlay={() => setMarker(null)} />{marker && <span className="pointer-events-none absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-red-500" style={{ left: `${marker.x * 100}%`, top: `${marker.y * 100}%` }} />}</div> : <span className="text-slate-400">Your scene starts here</span>}</div>
           {clip && <><div className="flex gap-3"><button className={button} onClick={() => { const v = video.current!; if (v.paused) void v.play().catch(fail); else v.pause(); }}>Play / pause</button><input aria-label="Clip position" className="min-w-0 flex-1" type="range" min="0" max={clip.duration} step="0.01" defaultValue="0" onChange={e => { video.current!.currentTime = Number(e.target.value); setMarker(null); }} /></div><p className="text-sm text-slate-500">{clip.duration.toFixed(1)} s · {clip.aspect_ratio} · first 10 seconds retained</p></>}
           {sample && <p className="text-xs text-slate-500">Video by <a className="underline" href="https://www.pexels.com/video/two-women-dancing-and-hugging-4800574/">Anna Shvets, Pexels</a> · <a className="underline" href="https://www.pexels.com/license/">Pexels license</a></p>}
+          <ClipGenMyClips disabled={busy || picking} onSelect={saved => void loadSaved(saved)} />
         </section>
         <div className="space-y-5"><section className={card}><h2 className="font-display text-xl font-bold">02 · Pick a person</h2><p className="text-sm text-slate-500">Click a person to pause and select them. Click again to re-pick.</p><label className="block text-sm font-semibold" htmlFor="target">Who to replace</label><textarea id="target" maxLength={1000} rows={3} disabled={busy || picking} value={target} onChange={e => setTarget(e.target.value)} placeholder="Click a person, then refine the description here." className="w-full rounded-lg border border-slate-200 p-3 text-sm" /><p role="status" className="text-sm text-slate-500">{picking ? 'Identifying your person…' : 'The description is editable.'}</p></section>
           <section className={card}><h2 className="font-display text-xl font-bold">03 · Add references</h2><p className="text-sm text-slate-500">1–3 clear, well-lit photos of the same face. JPEG, PNG or WebP · up to 15 MB each.</p><div className="flex gap-2"><label className={button}>Add photos<input hidden type="file" multiple accept="image/jpeg,image/png,image/webp" disabled={busy || photos.length >= 3} onChange={e => { void addPhotos(Array.from(e.target.files || [])); e.target.value = ''; }} /></label><button className={button} disabled={busy || photos.length >= 3} onClick={async () => { try { closeCamera(); if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera needs localhost or HTTPS. Please upload a photo.'); setCamera(await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })); } catch (e) { fail(e); } }}>Use camera</button></div>
