@@ -30,18 +30,18 @@
           <p class="intro">A real generated clip. A new way to see it.</p>
         </div>
         <div class="sample-actions">
+          <button id="lookaround-sample" class="secondary" type="button">Look-around demo</button>
           <button id="sample" class="secondary" type="button">
-            Flower demo <span aria-hidden="true">↗</span></button
+            Flower stereo <span aria-hidden="true">↗</span></button
           ><button id="calibration" class="text-button" type="button">
             Calibration cube
           </button>
         </div>
       </div>
       <div class="depth-guide">
-        <strong>No headset? Start with Wiggle.</strong
+        <strong>No headset? Look around.</strong
         ><span
-          >It alternates the two eye views to reveal depth. Binocular 3D needs
-          red/cyan glasses or a VR headset.</span
+          >Drag the depth video to shift perspective, or use Auto orbit for a fullscreen demo. No glasses needed.</span
         >
       </div>
       <div class="layout">
@@ -63,17 +63,32 @@
               tabindex="-1"
             ></video>
             <canvas id="preview" aria-label="Stereo clip preview"></canvas>
+            <canvas id="lookaround" aria-label="Depth-surface video. Drag or use arrow keys to change perspective." tabindex="0" hidden></canvas>
+            <span id="lookaround-hint" class="lookaround-hint" hidden>Drag to look around · or use arrow keys</span>
+            <div id="lookaround-toolbar" class="lookaround-toolbar" role="group" aria-label="Look-around controls" hidden>
+              <button id="look-play" type="button">Play clip</button>
+              <button id="orbit" type="button" aria-pressed="false">Auto orbit</button>
+              <button id="reset-view" type="button">Reset view</button>
+              <button id="tilt" type="button" aria-pressed="false">Enable tilt</button>
+              <button id="look-fullscreen" type="button">Fullscreen</button>
+            </div>
             <div id="stage-message" class="stage-message">
               Loading generated clip…
             </div>
           </div>
           <div class="view-modes" role="group" aria-label="Preview mode">
+            <button data-mode="lookaround" aria-pressed="false" disabled>Look around · drag</button>
             <button data-mode="left" aria-pressed="true">2D · flat</button
             ><button data-mode="wiggle" aria-pressed="false">
               Wiggle · no glasses</button
             ><button data-mode="anaglyph" aria-pressed="false">
               Red / cyan · glasses</button
             ><span id="mode-help">One eye, natural proportions.</span>
+          </div>
+          <div id="lookaround-settings" class="lookaround-settings" hidden>
+            <label for="depth-strength">Depth relief</label>
+            <input id="depth-strength" type="range" min="0" max="1" step="0.05" value="0.75" />
+            <span id="motion-status" role="status">Relative-depth surface, not a freely walkable scene.</span>
           </div>
           <div class="playback">
             <button id="play" class="icon-button" aria-label="Play" disabled>
@@ -160,6 +175,11 @@
           <section class="panel source-panel">
             <h2>Open your clip</h2>
             <p>Use a generated 3D clip or a local stereo video.</p>
+            <label for="source-layout">Clip format</label>
+            <select id="source-layout">
+              <option value="sbs">Stereo · left / right eyes</option>
+              <option value="rgbd">Depth video · RGB / depth</option>
+            </select>
             <form id="source-form">
               <label for="source-url">Video URL</label>
               <div class="url-input">
@@ -180,7 +200,7 @@
                 accept="video/*,.mp4,.webm,.mov"
             /></label>
             <p class="helper">
-              Side-by-side · left eye first<br />Files stay on your device.
+              Stereo: left eye first. Depth: RGB left, grayscale depth right (white = near).<br />Files stay on your device.
             </p>
           </section>
         </aside>
@@ -194,7 +214,7 @@
         <div>
           <span class="step">02</span>
           <h3>Watch anywhere</h3>
-          <p>A natural, single-eye preview on any screen.</p>
+          <p>Drag a depth video to change perspective on a normal screen.</p>
         </div>
         <div>
           <span class="step">03</span>
@@ -204,7 +224,7 @@
       </section>
       <footer>
         <span>Made for moments worth stepping into.</span
-        ><span>Stereo video, not a 360° scene.</span>
+        ><span>Relative depth, not a 360° or volumetric scene.</span>
       </footer>
     </main>
     <div id="xr-overlay" hidden>
