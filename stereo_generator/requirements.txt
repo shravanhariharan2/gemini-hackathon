@@ -1,0 +1,7 @@
+numpy==1.26.4
+opencv-python-headless==4.10.0.84
+torch==2.7.1
+torchvision==0.22.1
+tqdm==4.67.1
+einops==0.8.1
+easydict==1.13
