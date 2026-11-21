@@ -100,6 +100,8 @@ class CoreTests(unittest.TestCase):
                      'ONLY a locator', 'Keep the original motion, pose and body choreography']:
             self.assertIn(text, prompt)
         self.assertNotIn('Keep the target clothing', prompt)
+        self.assertIn('wrists, fingers, ankles, feet and toes', prompt)
+        self.assertIn('no original skin patches or original limbs may remain', prompt)
 
     def client(self):
         client = Mock()
