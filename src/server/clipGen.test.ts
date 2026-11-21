@@ -33,7 +33,11 @@ test('maps safety errors including nested details and preserves other failures',
 test('prompt preserves original scene and names only the selected target', () => {
   const prompt = buildPrompt('the dancer on the left');
   assert.ok(prompt.startsWith('Edit the supplied video. Replace ONLY the dancer on the left with the person in the reference images'));
-  assert.ok(prompt.includes('Keep the target clothing and body choreography.'));
+  for (const text of ['Replace the ENTIRE person, not just their face or head', 'gender presentation, full body shape and build, chest', "clothing must follow the reference person", "Match the reference person's skin tone and complexion across ALL visible skin", 'face, neck, chest, torso, arms, hands and legs', "Do not carry over the original target's skin tone", 'ONLY a locator', 'Keep the original motion, pose and body choreography']) assert.ok(prompt.includes(text), text);
+  assert.ok(!prompt.includes('Keep the target clothing'));
+  assert.ok(prompt.includes('wrists, fingers, ankles, feet and toes'));
+  assert.ok(prompt.includes('no original skin patches or original limbs may remain'));
+  assert.ok(prompt.includes('full-length bottoms and closed shoes appropriate to that outfit'));
   assert.ok(prompt.endsWith('Do not add people or cuts.'));
 });
 test('upload validation covers normal, empty, oversized and unsupported input', () => {

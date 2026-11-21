@@ -18,6 +18,9 @@ Open `/clip-gen` for isolated Gemini Omni character replacement (no studio impor
 Requires `ffmpeg`/`ffprobe` on PATH and server-side `GEMINI_API_KEY`.
 Upload a video or use the sample, click a person, refine the description, add 1–3
 reference photos or camera selfies, then swap. Compare synchronized results or download MP4.
+The edit requests whole-person replacement: identity, body/build, chest, all visible
+skin tone and clothing follow the references. Target outfit descriptions locate the
+person only. Motion, pose and scene remain; generative results may need a retry.
 Videos: at least 3 seconds, up to 200 MiB; first 10 seconds normalized to silent H.264.
 Photos: JPEG/PNG/WebP, up to 15 MiB and 30 megapixels each. Public figures may be blocked.
 Use photos you have permission to use; generation usually takes about a minute.
