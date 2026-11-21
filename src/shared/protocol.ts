@@ -36,13 +36,10 @@ export interface CreateRoomResponse {
 /**
  * Downstream clipping integration contract.
  * A downstream clipping service (e.g., Deepgram + DaVinci Resolve) can register
- * a ClipSinkAdapter to consume clip markers and the rolling in-memory media buffer.
+ * a ClipSinkAdapter to consume clip markers. The sink owns recording and post-roll.
  */
 export interface DownstreamClipPayload {
   marker: ClipMarkerEvent;
-  mimeType: string;
-  chunks: Blob[];
-  bufferedSeconds: number;
 }
 
 export interface ClipSinkAdapter {

@@ -56,7 +56,9 @@ export function getActiveClipSink(): ClipSinkAdapter {
 
 export function dispatchClipToSink(payload: DownstreamClipPayload): void {
   try {
-    void activeSink.onClipMarked(payload);
+    void Promise.resolve(activeSink.onClipMarked(payload)).catch(() => {
+      // Async sink failures must not interrupt the broadcast.
+    });
   } catch {
     // Isolate downstream sink errors from the live broadcast session
   }

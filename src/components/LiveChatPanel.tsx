@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pin, Send, Trash2, Users } from 'lucide-react';
 import {
   formatClockDuration,
@@ -9,6 +9,8 @@ import {
 import type { ChatMessage, ParticipantRole, RoomParticipant } from '../utils/types';
 
 interface LiveChatPanelProps {
+  clipsPanel?: ReactNode;
+  clipCount?: number;
   messages: ChatMessage[];
   pinnedMessage: ChatMessage | null;
   participants: RoomParticipant[];
@@ -25,6 +27,8 @@ interface LiveChatPanelProps {
 }
 
 export function LiveChatPanel({
+  clipsPanel,
+  clipCount = 0,
   messages,
   pinnedMessage,
   participants,
@@ -39,7 +43,7 @@ export function LiveChatPanel({
   onDeleteMessage,
   onUpdateSlowMode,
 }: LiveChatPanelProps) {
-  const [panelView, setPanelView] = useState<'chat' | 'crew'>('chat');
+  const [panelView, setPanelView] = useState<'chat' | 'crew' | 'clips'>(clipsPanel ? 'clips' : 'chat');
   const [draft, setDraft] = useState('');
   const feedEndRef = useRef<HTMLDivElement | null>(null);
   const canModerate = selfRole !== 'viewer';
@@ -68,18 +72,19 @@ export function LiveChatPanel({
           <button
             type="button"
             onClick={() => setPanelView('chat')}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition-colors ${
+            className={`px-2 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition-colors ${
               panelView === 'chat'
                 ? 'bg-white text-slate-950 shadow-xs'
                 : 'text-slate-500 hover:text-slate-900'
             }`}
           >
-            Stream Chat
+            {clipsPanel ? 'Chat' : 'Stream Chat'}
           </button>
+          {clipsPanel && <button type="button" onClick={() => setPanelView('clips')} aria-pressed={panelView === 'clips'} className={`px-2 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition-colors ${panelView === 'clips' ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-500 hover:text-slate-900'}`}>My Clips ({clipCount})</button>}
           <button
             type="button"
             onClick={() => setPanelView('crew')}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition-colors inline-flex items-center gap-1.5 ${
+            className={`px-2 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition-colors inline-flex items-center gap-1.5 ${
               panelView === 'crew'
                 ? 'bg-white text-slate-950 shadow-xs'
                 : 'text-slate-500 hover:text-slate-900'
@@ -90,12 +95,12 @@ export function LiveChatPanel({
           </button>
         </div>
 
-        <span className="text-xs text-slate-400 tabular-nums whitespace-nowrap">
+        <span className={`${clipsPanel ? 'sr-only' : ''} text-xs text-slate-400 tabular-nums whitespace-nowrap`}>
           {connected ? 'Connected' : 'Reconnecting'}
         </span>
       </div>
 
-      {panelView === 'chat' ? (
+      {panelView === 'clips' && clipsPanel ? clipsPanel : panelView === 'chat' ? (
         <>
           {/* Pinned Announcement */}
           {pinnedMessage && (

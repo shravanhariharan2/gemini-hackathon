@@ -1,0 +1,17 @@
+{
+  "rules": {
+    "trigger": "Does this window contain a notable reaction, surprising event, impressive skill, funny moment, or useful insight worth examining as a highlight?",
+    "worthy": "Does this video contain a compelling, understandable highlight worth sharing as a short standalone clip?",
+    "arc": "Does this window contain enough setup, a clear payoff, and the immediate reaction to make a complete standalone story?"
+  },
+  "thresholds": {
+    "trigger": 0.7,
+    "worthy": 0.7,
+    "arc": 0.65,
+    "viral": 0.6,
+    "hook": 0.5
+  },
+  "intervalSec": 15,
+  "postRollSec": 10,
+  "cooldownSec": 30
+}

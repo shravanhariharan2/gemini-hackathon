@@ -10,7 +10,11 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "tsx --test src/utils/streamUtils.test.ts src/utils/audioRelay.test.ts src/utils/roomLifecycle.test.ts src/utils/studioShortcuts.test.ts src/server/shopMcp.test.ts src/server/itemDetection.test.ts src/server/profileOrigin.test.ts src/server/clipGen.test.ts src/viewer3d/test/*.test.js"
+    "test": "tsx --test src/utils/*.test.ts src/server/*.test.ts src/services/*.test.ts src/eval/*.test.ts src/viewer3d/test/*.test.js",
+    "eval:run": "tsx scripts/eval.ts run",
+    "eval:score": "tsx scripts/eval.ts score",
+    "eval:compare": "tsx scripts/eval.ts compare",
+    "eval:review": "tsx scripts/eval-review.ts"
   },
   "dependencies": {
     "@google/genai": "^3.6.1",

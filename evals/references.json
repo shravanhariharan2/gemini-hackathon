@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "references": [
+    {
+      "id": "wimbledon-final-draft",
+      "videoId": "wimbledon",
+      "kind": "moment",
+      "start": 295,
+      "end": 355,
+      "peak": 346,
+      "title": "Review the final-game candidate",
+      "notes": "Imported model suggestion, not ground truth. Watch the source and set the desired start, peak, and end before marking reviewed.",
+      "reviewer": "",
+      "status": "draft",
+      "origin": "model-suggestion"
+    }
+  ],
+  "coverage": {}
+}

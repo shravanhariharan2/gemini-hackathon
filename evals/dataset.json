@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "videos": [
+    {
+      "id": "wimbledon",
+      "title": "Alcaraz vs Djokovic \u00b7 Wimbledon final",
+      "file": "Carlos Alcaraz vs Novak Djokovic\uff1a Final Highlights \uff5c Wimbledon 2023 [K-VmllVIOXA].webm",
+      "duration": 360.788,
+      "sha256": "acd01ca1db6feb88b6803e93e7ee59d010406cc1317eac95d124864b2f36ecef",
+      "split": "dev"
+    },
+    {
+      "id": "f1-monza",
+      "title": "Italian Grand Prix 2021",
+      "file": "Extended Race Highlights \uff5c 2021 Italian Grand Prix [gPkIfNtro7I].webm",
+      "duration": 1197.428,
+      "sha256": "dc84b6a2a8324758ccd06688fbfeea5022e0d7b1c4c8139b5216a20c8e9ba78b",
+      "split": "dev"
+    },
+    {
+      "id": "hot-ones",
+      "title": "Gordon Ramsay \u00b7 Hot Ones",
+      "file": "Gordon Ramsay Savagely Critiques Spicy Wings \uff5c Hot Ones [U9DyHthJ6LA].webm",
+      "duration": 1860.648,
+      "sha256": "53615a7f258491ffb1bed311459fa7bbaa83f5c521b7551d1cef3c7d6f08d038",
+      "split": "test"
+    },
+    {
+      "id": "football",
+      "title": "Portugal vs Denmark",
+      "file": "Portugal vs Denmark Highlights \uff5c UEFA Nations League [A-8UPN5wiRg].webm",
+      "duration": 671.828,
+      "sha256": "a1ed64f761577d86a17ac3bd38cd068fad3a1dfcef960b479f874f594596f918",
+      "split": "test"
+    },
+    {
+      "id": "big-bang",
+      "title": "Big Bang Theory \u00b7 Gaming",
+      "file": "\u2018The Big Bang Theory\u2019 Clips for the Gaming Addicts [nuOVCerKWEg].webm",
+      "duration": 1365.848,
+      "sha256": "759e989d71384f15780afc3388ca0a1ab84143f9cacbfed944605a779f41f2a5",
+      "split": "dev"
+    }
+  ]
+}

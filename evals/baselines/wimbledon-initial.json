@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "id": "wimbledon-initial",
+  "createdAt": "2026-11-21T17:51:21.136Z",
+  "completedVideoIds": [
+    "wimbledon"
+  ],
+  "predictions": [
+    {
+      "id": "wimbledon-1",
+      "videoId": "wimbledon",
+      "start": 295,
+      "end": 355,
+      "scores": {
+        "worthy": 0.7581629191042525,
+        "arc": 0.693336485718178,
+        "viral": 0.8795811038945928,
+        "hook": 0.6859280438091626
+      }
+    }
+  ],
+  "sourceHashes": {
+    "wimbledon": "acd01ca1db6feb88b6803e93e7ee59d010406cc1317eac95d124864b2f36ecef"
+  },
+  "errors": [],
+  "provenance": "Existing real Gemini run. Safety removed from approval afterward; the remaining model scores and cuts are unchanged.",
+  "config": {
+    "rules": {
+      "trigger": "Does this window contain a notable reaction, surprising event, impressive skill, funny moment, or useful insight worth examining as a highlight?",
+      "worthy": "Does this video contain a compelling, understandable highlight worth sharing as a short standalone clip?",
+      "arc": "Does this window contain enough setup, a clear payoff, and the immediate reaction to make a complete standalone story?"
+    },
+    "thresholds": {
+      "trigger": 0.7,
+      "worthy": 0.7,
+      "arc": 0.65,
+      "viral": 0.6,
+      "hook": 0.5
+    },
+    "intervalSec": 15,
+    "postRollSec": 10,
+    "cooldownSec": 30
+  },
+  "usage": {
+    "inputTokens": 52879,
+    "outputTokens": 0
+  }
+}

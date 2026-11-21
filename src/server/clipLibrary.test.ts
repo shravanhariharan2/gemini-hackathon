@@ -1,0 +1,92 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, rm, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import express from 'express';
+import type { AddressInfo } from 'node:net';
+import { ClipLibrary } from './clipLibrary';
+import { createClipRouter } from './clipRoutes';
+import { parseClipRequest } from './clipDecisions';
+import { DEFAULT_RULES, DEFAULT_THRESHOLDS, type SavedClip, type ClipAnswers } from '../shared/clipping';
+const ownerA = 'a'.repeat(64), ownerB = 'b'.repeat(64);
+const media = Buffer.concat([Buffer.from('1a45dfa3', 'hex'), Buffer.alloc(20)]);
+const metadata = (): Omit<SavedClip, 'bytes' | 'url' | 'downloadUrl'> => ({ id: crypto.randomUUID(), capturedAt: Date.now(), roomId: 'test', source: 'manual', startedAt: 1000, durationSec: 10, originalDurationSec: 60, trim: { start: 20, end: 30 }, answers: {} });
+
+test('library persists finished bytes across instances, isolates owners, and saves an ID once', async t => {
+  const root = await mkdtemp(path.join(tmpdir(), 'clip-library-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const library = new ClipLibrary(root); const data = metadata();
+  const saved = await library.save(ownerA, data, media);
+  assert.deepEqual(await new ClipLibrary(root).list(ownerA), [saved]);
+  assert.deepEqual(await readFile(library.mediaPath(ownerA, saved.id)), media);
+  assert.deepEqual(await library.list(ownerB), []);
+  assert.equal(await library.get(ownerB, saved.id), null);
+  await assert.rejects(library.remove(ownerB, saved.id));
+  const duplicates = await Promise.all([library.save(ownerA, data, media), library.save(ownerA, data, Buffer.from('replacement'))]);
+  assert.deepEqual(duplicates, [saved, saved]);
+  assert.deepEqual(await readFile(library.mediaPath(ownerA, saved.id)), media);
+  await assert.rejects(library.get(ownerA, '../metadata.json'));
+  await library.remove(ownerA, saved.id);
+  assert.deepEqual(await library.list(ownerA), []);
+});
+
+test('concurrent quota checks cannot overfill a library or evict old clips', async t => {
+  const root = await mkdtemp(path.join(tmpdir(), 'clip-quota-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const library = new ClipLibrary(root, media.length);
+  const attempts = await Promise.allSettled([library.save(ownerA, metadata(), media), library.save(ownerA, metadata(), media)]);
+  assert.equal(attempts.filter(r => r.status === 'fulfilled').length, 1);
+  const failure = attempts.find(r => r.status === 'rejected') as PromiseRejectedResult;
+  assert.equal(failure.reason.status, 507);
+  assert.equal((await library.list(ownerA)).length, 1);
+});
+
+test('automatic qualifying cuts and manual low-score captures save directly; probes and rejected cuts do not', async t => {
+  const root = await mkdtemp(path.join(tmpdir(), 'clip-routes-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const library = new ClipLibrary(root);
+  let positive = false;
+  const windows: unknown[] = [];
+  const app = express();
+  app.use('/api/clips', createClipRouter(async () => {
+    const p = positive ? .95 : .1;
+    const answers: ClipAnswers = Object.fromEntries(['worthy', 'arc'].map(k => [k, { type: 'noul', noul: p, confidence: .9 }]));
+    for (const k of ['viral', 'hook']) answers[k] = { type: 'score', score: p * 4, confidence: .9, probabilities: { '0': 1-p, '4': p }, legend: {} };
+    return { answers, durationSec: 60, sourceOffsetSec: 0, trim: { start: 20, end: 30 }, media: media.toString('base64'), inspection: { request: {}, response: {}, elapsedMs: 1 } };
+  }, async (bytes, _duration, window) => { windows.push(window); return { media: Buffer.from(bytes), durationSec: window.end ? window.end - (window.start || 0) : 60, sourceOffsetSec: 0 }; }, library));
+  const server = app.listen(0, '127.0.0.1'); await new Promise<void>(r => server.once('listening', r));
+  t.after(() => { server.closeAllConnections(); server.close(); });
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api/clips`;
+  const initial = await fetch(`${base}/library`);
+  const setCookie = initial.headers.get('set-cookie')!;
+  assert.match(setCookie, /HttpOnly/); assert.match(setCookie, /SameSite=Lax/);
+  const cookie = setCookie.split(';')[0];
+  const request = { stage: 'judge', resolution: 'medium', durationSec: 60, targetSeconds: 60, media: media.toString('base64'), chat: [], rules: DEFAULT_RULES, capture: { id: crypto.randomUUID(), roomId: 'test', source: 'auto-trigger', startedAt: 1000, thresholds: DEFAULT_THRESHOLDS } };
+  assert.throws(() => parseClipRequest({ ...request, capture: { ...request.capture, thresholds: { ...DEFAULT_THRESHOLDS, worthy: -1 } } }));
+  const post = async (source: string, stage = 'judge') => {
+    const response = await fetch(`${base}/analyze`, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: cookie }, body: JSON.stringify({ ...request, stage, capture: { ...request.capture, id: crypto.randomUUID(), source } }) });
+    assert.equal(response.status, 200); return response.json();
+  };
+  assert.equal((await post('auto-trigger')).selection, 'below-threshold');
+  const manual = await post('manual');
+  assert.equal(manual.selection, 'saved'); assert.equal(manual.media, undefined);
+  assert.equal(manual.savedClip.durationSec, 10);
+  assert.deepEqual(windows.at(-1), { start: 20, end: 30 });
+  assert.equal((await post('voice')).selection, 'saved');
+  positive = true;
+  assert.equal((await post('auto-trigger')).selection, 'saved');
+  assert.equal((await post('auto-probe', 'instant')).selection, 'saved');
+  assert.equal((await post('auto-probe', 'probe')).savedClip, undefined);
+  const list = await (await fetch(`${base}/library`, { headers: { Cookie: cookie } })).json();
+  assert.equal(list.clips.length, 4);
+  const fileUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}${manual.savedClip.url}`;
+  const range = await fetch(fileUrl, { headers: { Cookie: cookie, Range: 'bytes=0-3' } });
+  assert.equal(range.status, 206); assert.equal(Buffer.from(await range.arrayBuffer()).toString('hex'), '1a45dfa3');
+  assert.equal((await fetch(fileUrl)).status, 404);
+  const download = await fetch(`${fileUrl}?download=1`, { headers: { Cookie: cookie } });
+  assert.match(download.headers.get('content-disposition')!, /attachment/);
+  assert.equal((await fetch(`${base}/library/${manual.savedClip.id}`, { method: 'DELETE' })).status, 404);
+  assert.equal((await fetch(`${base}/library/${manual.savedClip.id}`, { method: 'DELETE', headers: { Cookie: cookie } })).status, 204);
+});

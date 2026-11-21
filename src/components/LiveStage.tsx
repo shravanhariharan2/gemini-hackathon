@@ -387,7 +387,7 @@ export function LiveStage({
               {lastClipMarker.source === 'voice' ? 'Voice "Clip That"' : 'Manual'})
             </span>
           </span>
-          <span className="text-slate-300">Ready for downstream clipping</span>
+          <span className="text-slate-300">{selfRole === 'viewer' ? 'Highlight requested' : 'Follow progress in the Clips tab'}</span>
         </div>
       )}
 
@@ -534,10 +534,11 @@ export function LiveStage({
 
               <button
                 type="button"
+                disabled={!isLive || !isAutoRecording}
                 onClick={() => onTriggerClipMark('manual')}
                 aria-keyshortcuts="C"
                 title="Mark clip moment (C)"
-                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-slate-950 hover:bg-slate-800 text-white rounded-xl transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-slate-950 hover:bg-slate-800 text-white rounded-xl transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Scissors className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>Clip That</span>

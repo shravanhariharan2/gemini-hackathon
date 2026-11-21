@@ -1,0 +1,32 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>ClipThat recorder regression check</title>
+<style>body{font:16px system-ui;margin:32px;max-width:800px;background:#f8fafc;color:#0f172a}button{padding:12px 18px}video,canvas{width:320px;display:block;margin:20px 0}pre{white-space:pre-wrap}</style>
+<h1>Real browser recorder check</h1><p>This developer test records generated shapes and a quiet tone. No camera, microphone, or Gemini API is used. It runs for 65 seconds to cross the 60-second rollover.</p>
+<button id="start">Start 65-second recording check</button><pre id="status">Ready</pre><canvas id="scene" width="640" height="360"></canvas><video id="preview" controls muted></video>
+<script type="module">
+import { RollingRecorder } from '/src/services/rollingRecorder.ts';
+const status = document.querySelector('#status'); const start = document.querySelector('#start');
+start.onclick = async () => {
+ start.disabled = true; let recorder, audio, tick, sceneTimer, stream;
+ try {
+  const canvas = document.querySelector('#scene'); const ctx = canvas.getContext('2d'); const began = Date.now();
+  sceneTimer = setInterval(() => { ctx.fillStyle='#0f172a';ctx.fillRect(0,0,640,360);ctx.fillStyle='#fb7185';ctx.fillRect((Date.now()-began)/10%540,100,100,100);ctx.fillStyle='white';ctx.font='24px sans-serif';ctx.fillText(((Date.now()-began)/1000).toFixed(1)+' seconds',30,45); }, 50);
+  audio = new AudioContext(); await audio.resume(); const destination = audio.createMediaStreamDestination();const oscillator=audio.createOscillator();const gain=audio.createGain();gain.gain.value=.02;oscillator.connect(gain).connect(destination);oscillator.start();
+  stream=canvas.captureStream(20); destination.stream.getAudioTracks().forEach(t=>stream.addTrack(t));
+  recorder=new RollingRecorder(stream, message=>{status.textContent=message});
+  tick=setInterval(()=>{status.textContent=`Recording · ${Math.floor((Date.now()-began)/1000)} / 65 seconds`;},500);
+  await new Promise(resolve=>setTimeout(resolve,65000));clearInterval(tick);
+  const snapshot=await recorder.snapshot(60); recorder.stop();const header=Array.from(new Uint8Array(await snapshot.blob.slice(0,4).arrayBuffer()));
+  if(header.join(',')!=='26,69,223,163')throw new Error('Lost WebM header');
+  if(snapshot.durationSec<45||snapshot.durationSec>60)throw new Error('Unexpected buffer length');
+  status.textContent=`Header preserved after rollover. ${snapshot.durationSec.toFixed(1)}s window. Normalizing a 3s cut…`;
+  const data=await new Promise(resolve=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.readAsDataURL(snapshot.blob)});
+  const response=await fetch('/api/clips/trim',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({media:data,durationSec:snapshot.durationSec,start:1,end:4})});
+  if(!response.ok)throw new Error((await response.json()).error);
+  const result=await response.blob();const video=document.querySelector('#preview');video.src=URL.createObjectURL(result);
+  await new Promise((resolve,reject)=>{video.onloadeddata=resolve;video.onerror=()=>reject(new Error('Browser could not decode WebM'))});
+  await video.play();
+  status.textContent=`PASS: WebM headers survived rollover. Captured ${snapshot.durationSec.toFixed(1)}s. Browser decoded and played ${video.duration.toFixed(2)}s trimmed video (${result.size} bytes).`;
+ }catch(error){status.textContent=`FAIL: ${error.message}`}
+ finally{clearInterval(tick);clearInterval(sceneTimer);recorder?.stop();stream?.getTracks().forEach(t=>t.stop());await audio?.close();start.disabled=false}
+};
+</script></html>
