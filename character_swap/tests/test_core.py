@@ -27,7 +27,7 @@ class CoreTests(unittest.TestCase):
     def test_prepare_landscape_trim(self):
         out = self.root / 'out.mp4'
         info = core.prepare_clip(self.clip(16), out)
-        self.assertAlmostEqual(info['duration'], 15, places=1)
+        self.assertAlmostEqual(info['duration'], 10, places=1)
         self.assertEqual(info['aspect_ratio'], '16:9')
         self.assertEqual(core._probe(out)['streams'][0]['codec_name'], 'h264')
 
@@ -85,7 +85,11 @@ class CoreTests(unittest.TestCase):
     def test_prompt(self):
         prompt = core.build_prompt('the blonde dancer on the right')
         for text in ['ONLY the blonde dancer on the right', 'clothing',
-                     'choreography', 'other people', 'duration', 'Do not add']:
+                     'choreography', 'other people', 'duration', 'Do not add',
+                     'all show the same person', 'facial identity precisely',
+                     'every frame', 'turns', 'face shape', 'eyes', 'nose', 'mouth',
+                     'jawline', 'skin tone', 'hair', 'glasses', 'facial hair',
+                     'scene lighting', 'color grading', 'do not relight or recolor']:
             self.assertIn(text, prompt)
 
     def client(self):
@@ -110,8 +114,32 @@ class CoreTests(unittest.TestCase):
                                           {'type': 'image', 'uri': 'photo-uri'}])
         self.assertEqual(call['response_format'], {'type': 'video', 'aspect_ratio': '9:16'})
         self.assertFalse(call['store'])
+        self.assertEqual(call['generation_config'], {'video_config': {'task': 'edit'}})
         self.assertEqual(result['prompt'], call['input'][2]['text'])
         self.assertGreaterEqual(result['seconds'], 0)
+
+    def test_swap_multiple_photos(self):
+        for count in (2, 3):
+            with self.subTest(count=count):
+                client = self.client()
+                client.files.upload.side_effect = [NS(state=NS(name='ACTIVE'), uri=uri)
+                    for uri in ['clip-uri'] + [f'photo-{i}-uri' for i in range(count)]]
+                photos = [self.root / f'photo-{i}.jpg' for i in range(count)]
+                with patch.object(core, '_video_info', return_value=(6, '16:9')):
+                    core.swap_character('clip.mp4', photos, 'target', self.root / 'out', client)
+                self.assertEqual([call.kwargs['file'] for call in client.files.upload.call_args_list],
+                                 ['clip.mp4'] + [str(photo) for photo in photos])
+                inputs = client.interactions.create.call_args.kwargs['input']
+                self.assertEqual(inputs[1:-1], [{'type': 'image', 'uri': f'photo-{i}-uri'}
+                                                for i in range(count)])
+                self.assertEqual(inputs[-1]['text'], core.build_prompt('target'))
+
+    def test_swap_photo_count(self):
+        client = self.client()
+        for photos in ([], ['photo'] * 4):
+            with self.subTest(photos=photos), self.assertRaisesRegex(ValueError, '1 to 3'):
+                core.swap_character('clip', photos, 'target', self.root / 'out', client)
+        client.files.upload.assert_not_called()
 
     def test_swap_empty_and_failed_upload(self):
         for output in [None, NS(data=''), NS(data='%%%')]:

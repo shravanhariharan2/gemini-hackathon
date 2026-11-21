@@ -61,10 +61,59 @@ class APITests(unittest.TestCase):
         self.assertEqual(page.status_code, 200)
         self.assertIn('Who to replace', page.text)
         self.assertIn('Clips of public figures are blocked by Gemini.', page.text)
+        self.assertIn('3–10 seconds', page.text)
+        self.assertIn('Add up to 3 clear, well-lit photos of the same face', page.text)
+        self.assertIn('multiple hidden', page.text)
         demo = self.client.get('/demo/dancers.mp4')
         self.assertEqual(demo.status_code, 200)
         self.assertEqual(demo.headers['content-type'], 'video/mp4')
         self.assertGreater(len(demo.content), 1000)
+
+    def test_multiple_photos(self):
+        contents = [self.photo]
+        for format in ('PNG', 'WEBP'):
+            buf = io.BytesIO()
+            Image.new('RGB', (20, 20)).save(buf, format=format)
+            contents.append(buf.getvalue())
+        def swap(clip, photos, target, output, client):
+            self.assertEqual([path.read_bytes() for path in photos], contents[:len(photos)])
+            Path(output).write_bytes(b'video')
+            return {'seconds': 1}
+        with patch('character_swap.server.prepare_clip', side_effect=self.prepare), \
+             patch('character_swap.server.swap_character', side_effect=swap) as generate:
+            clip = self.upload().json()['clip_id']
+            for count in (2, 3):
+                with self.subTest(count=count):
+                    files = [('photo', (f'photo.{suffix}', data, mime)) for suffix, mime, data in
+                             zip(('jpg', 'png', 'webp'), ('image/jpeg', 'image/png', 'image/webp'), contents)]
+                    response = self.client.post('/api/swaps', files=files[:count],
+                        data={'clip_id': clip, 'target': 'right dancer'})
+                    self.assertEqual(response.status_code, 200)
+                    final = self.poll(response.json()['job_id'])
+                    self.assertEqual(final['status'], 'done')
+                    self.assertEqual(len(generate.call_args.args[1]), count)
+            self.assertFalse(list(Path(self.tmp.name).glob('*.jpg')))
+            self.assertFalse(list(Path(self.tmp.name).glob('*.png')))
+            self.assertFalse(list(Path(self.tmp.name).glob('*.webp')))
+
+    def test_photo_validation_and_cleanup(self):
+        good = ('photo', ('photo.jpg', self.photo, 'image/jpeg'))
+        with patch('character_swap.server.prepare_clip', side_effect=self.prepare), \
+             patch('character_swap.server.swap_character') as generate:
+            clip = self.upload().json()['clip_id']
+            data = {'clip_id': clip, 'target': 'right dancer'}
+            self.assertEqual(self.client.post('/api/swaps', data=data).status_code, 422)
+            self.assertEqual(self.client.post('/api/swaps', files=[good]*4, data=data).status_code, 422)
+            for content, mime, status in ((b'bad', 'image/jpeg', 400),
+                                           (b'', 'image/jpeg', 400),
+                                           (b'bad', 'text/plain', 415),
+                                           (b'x' * (15*1024*1024+1), 'image/jpeg', 413)):
+                with self.subTest(status=status, size=len(content)):
+                    response = self.client.post('/api/swaps',
+                        files=[good, ('photo', ('bad.jpg', content, mime))], data=data)
+                    self.assertEqual(response.status_code, status)
+                    self.assertFalse(list(Path(self.tmp.name).glob('*.jpg')))
+            generate.assert_not_called()
 
     def test_job_error_mapping(self):
         blocked = "Input blocked: Sorry, we can't create videos with real people's names or likenesses."

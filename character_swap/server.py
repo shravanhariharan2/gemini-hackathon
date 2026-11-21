@@ -128,12 +128,12 @@ def create_app(work_dir=None, client_factory=None):
         finally:
             path.unlink(missing_ok=True)
 
-    def run_job(job_id, clip, photo, target, output):
+    def run_job(job_id, clip, photos, target, output):
         start = time.monotonic()
         with lock:
             jobs[job_id]['status'] = 'running'
         try:
-            result = swap_character(clip, photo, target, output, client())
+            result = swap_character(clip, photos, target, output, client())
             with lock:
                 jobs[job_id].update(status='done', seconds=result['seconds'],
                                     video_url=f'/api/swaps/{job_id}/video')
@@ -142,24 +142,38 @@ def create_app(work_dir=None, client_factory=None):
                 jobs[job_id].update(status='error', seconds=time.monotonic()-start,
                                     **_job_error(exc))
         finally:
-            photo.unlink(missing_ok=True)
+            for photo in photos:
+                photo.unlink(missing_ok=True)
 
     @app.post('/api/swaps')
-    def create_swap(photo: UploadFile = File(...), clip_id: str = Form(...),
+    def create_swap(photo: list[UploadFile] = File(...), clip_id: str = Form(...),
                     target: str = Form(..., min_length=1, max_length=1000)):
         clip = clip_info(clip_id)
         if not target.strip():
             raise HTTPException(422, 'Target description is required')
+        if not 1 <= len(photo) <= 3:
+            raise HTTPException(422, 'Provide 1 to 3 reference photos of the same person')
         job_id = uuid4().hex
         suffix = {'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp'}
-        path = root / f'{job_id}{suffix.get(photo.content_type, ".image")}'
-        save_upload(photo, path, 15 * 1024 * 1024, set(suffix))
-        validate_image(path, {'JPEG', 'PNG', 'WEBP'})
+        paths = []
+        try:
+            for index, upload in enumerate(photo):
+                path = root / f'{job_id}-{index}{suffix.get(upload.content_type, ".image")}'
+                paths.append(path)
+                save_upload(upload, path, 15 * 1024 * 1024, set(suffix))
+                validate_image(path, {'JPEG', 'PNG', 'WEBP'})
+        except Exception:
+            for path in paths:
+                path.unlink(missing_ok=True)
+            raise
+        finally:
+            for upload in photo:
+                upload.file.close()
         with lock:
             jobs[job_id] = {'status': 'queued', 'seconds': None,
                             'error': None, 'video_url': None}
         threading.Thread(target=run_job,
-                         args=(job_id, clip['path'], path, target.strip(),
+                         args=(job_id, clip['path'], paths, target.strip(),
                                root / f'{job_id}-output.mp4'), daemon=True).start()
         return {'job_id': job_id}
 

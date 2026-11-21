@@ -1,16 +1,18 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const clip = $('clip'), original = $('original'), swapped = $('swapped');
-let clipData = null, photo = null, busy = false, uploading = false, picking = 0;
-let cameraStream = null, photoURL = null, selected = null, playing = false, pickSerial = 0;
+let clipData = null, photos = [], busy = false, uploading = false, picking = 0, addingPhotos = false;
+let cameraStream = null, selected = null, playing = false, pickSerial = 0;
 const stamp = seconds => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 function error(message = '') { $('error').textContent = message; $('error').hidden = !message; }
 function controls() {
-  $('swap').disabled = busy || uploading || !clipData || !photo || !$('target').value.trim() || !!picking;
+  $('swap').disabled = busy || uploading || addingPhotos || !clipData || !photos.length || !$('target').value.trim() || !!picking;
   $('sample').disabled = busy || uploading;
   $('clip-file').disabled = busy || uploading;
-  $('photo-file').disabled = busy;
-  $('camera-open').disabled = busy;
+  $('photo-file').disabled = busy || addingPhotos || photos.length >= 3;
+  $('camera-open').disabled = busy || addingPhotos || photos.length >= 3;
+  $('capture').disabled = busy || addingPhotos || photos.length >= 3;
+  $('photo-previews').querySelectorAll('button').forEach(button => { button.disabled = busy || addingPhotos; });
   $('target').disabled = busy;
 }
 async function request(url, options) {
@@ -48,7 +50,7 @@ async function loadClip(file, sample = false) {
     const form = new FormData(); form.append('video', file);
     clipData = await request('/api/clips', {method: 'POST', body: form});
     clip.src = clipData.url; clip.load(); $('empty').hidden = true;
-    $('clip-info').textContent = `${clipData.duration.toFixed(1)} s · ${clipData.aspect_ratio}${duration > 15 ? ' · Trimmed to the first 15 seconds' : ''}`;
+    $('clip-info').textContent = `${clipData.duration.toFixed(1)} s · ${clipData.aspect_ratio}${duration > 10 ? ' · Trimmed to the first 10 seconds' : ''}`;
     $('credit').hidden = !sample;
     $('describe-status').textContent = 'Click the person you want to replace.';
     $('clip-play').disabled = false; $('clip-seek').disabled = false;
@@ -103,19 +105,37 @@ clip.onclick = async event => {
   finally { if (token === picking) picking = 0; controls(); }
 };
 $('target').oninput = controls;
-async function selectPhoto(file) {
-  try {
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('Choose a JPEG, PNG or WebP photo.');
-    if (file.size > 15 * 1024 * 1024) throw new Error('Photo must be 15 MB or smaller.');
-    const bitmap = await createImageBitmap(file);
-    const pixels = bitmap.width * bitmap.height; bitmap.close();
-    if (pixels > 30000000) throw new Error('Photo must be 30 megapixels or smaller.');
-    photo = file; if (photoURL) URL.revokeObjectURL(photoURL);
-    photoURL = URL.createObjectURL(file); $('photo-preview').src = photoURL; $('photo-preview').hidden = false;
-    $('photo-info').textContent = file.name; error();
-  } catch (e) { error(e.message); } finally { controls(); }
+function renderPhotos() {
+  $('photo-previews').replaceChildren();
+  photos.forEach((photo, index) => {
+    const figure = document.createElement('figure'), image = document.createElement('img'), remove = document.createElement('button');
+    image.src = photo.url; image.alt = `Reference photo ${index + 1}`;
+    remove.type = 'button'; remove.textContent = 'Remove'; remove.setAttribute('aria-label', `Remove reference photo ${index + 1}`);
+    remove.onclick = () => {
+      if (busy || addingPhotos) return;
+      URL.revokeObjectURL(photo.url); photos.splice(index, 1); renderPhotos(); controls();
+    };
+    figure.append(image, remove); $('photo-previews').append(figure);
+  });
+  $('photo-info').textContent = `JPEG, PNG or WebP · up to 15 MB each · ${photos.length}/3 selected`;
 }
-$('photo-file').onchange = e => { if (e.target.files[0]) selectPhoto(e.target.files[0]); };
+async function selectPhotos(files) {
+  if (busy || addingPhotos) return;
+  addingPhotos = true; controls();
+  try {
+    if (photos.length + files.length > 3) throw new Error('Add up to 3 photos of the same person. Remove a photo to replace it.');
+    for (const file of files) {
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('Choose JPEG, PNG or WebP photos.');
+      if (file.size > 15 * 1024 * 1024) throw new Error('Each photo must be 15 MB or smaller.');
+      const bitmap = await createImageBitmap(file);
+      const pixels = bitmap.width * bitmap.height; bitmap.close();
+      if (pixels > 30000000) throw new Error('Each photo must be 30 megapixels or smaller.');
+    }
+    photos.push(...files.map(file => ({file, url: URL.createObjectURL(file)})));
+    renderPhotos(); error();
+  } catch (e) { error(e.message); } finally { addingPhotos = false; controls(); }
+}
+$('photo-file').onchange = e => { const files = Array.from(e.target.files); e.target.value = ''; if (files.length) selectPhotos(files); };
 function closeCamera() { cameraStream?.getTracks().forEach(track => track.stop()); cameraStream = null; $('camera').srcObject = null; $('camera-panel').hidden = true; }
 $('camera-open').onclick = async () => {
   try {
@@ -131,7 +151,7 @@ $('capture').onclick = async () => {
   const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight;
   canvas.getContext('2d').drawImage(video, 0, 0);
   const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .9));
-  if (blob) { await selectPhoto(new File([blob], 'selfie.jpg', {type: 'image/jpeg'})); closeCamera(); }
+  if (blob) { await selectPhotos([new File([blob], 'selfie.jpg', {type: 'image/jpeg'})]); closeCamera(); }
 };
 window.addEventListener('pagehide', closeCamera);
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -148,7 +168,7 @@ $('swap').onclick = async () => {
   const elapsed = setInterval(() => { $('job-status').textContent = `Creating your swap · ${Math.floor((performance.now() - start) / 1000)} s elapsed · usually about a minute`; }, 1000);
   $('job-status').textContent = 'Uploading reference…'; $('swap').textContent = 'Swapping…';
   try {
-    const form = new FormData(); form.append('photo', photo); form.append('clip_id', clipData.clip_id); form.append('target', $('target').value.trim());
+    const form = new FormData(); photos.forEach(photo => form.append('photo', photo.file)); form.append('clip_id', clipData.clip_id); form.append('target', $('target').value.trim());
     const {job_id} = await request('/api/swaps', {method: 'POST', body: form});
     let job;
     do {
