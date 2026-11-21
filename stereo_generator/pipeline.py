@@ -1,5 +1,6 @@
-"""File-in, file-out POV-to-stereo worker."""
+"""POV-to-stereo worker with optional RGB+depth output."""
 
+from contextlib import ExitStack
 from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
@@ -26,20 +27,25 @@ def generate(
     input_mp4: Path | str,
     output_mp4: Path | str,
     *,
+    rgb_depth_mp4: Path | str | None = None,
     gemini_api_key: str | None = None,
     gemini_model: str = framing.DEFAULT_MODEL,
     assets: Path = MODEL_DIR,
     device: str = "auto",
     max_side: int = 1280,
 ) -> Result:
-    """Write left-first full-width stereo, atomically replacing output on success."""
+    """Write left-first SBS and optionally a synchronized RGB-left, depth-right MP4."""
     source, target = Path(input_mp4).resolve(), Path(output_mp4).resolve()
-    if source.suffix.lower() != ".mp4" or target.suffix.lower() != ".mp4":
+    outputs = (target,) if rgb_depth_mp4 is None else (target, Path(rgb_depth_mp4).resolve())
+    paths = (source, *outputs)
+    if any(path.suffix.lower() != ".mp4" for path in paths):
         raise ValueError("Input and output must be local .mp4 paths.")
-    if source == target:
-        raise ValueError("Input and output must be different paths.")
-    if not source.is_file() or not target.parent.is_dir():
+    if len(set(paths)) != len(paths):
+        raise ValueError("Input and outputs must be different paths.")
+    if not source.is_file() or any(not path.parent.is_dir() for path in outputs):
         raise ValueError("Input MP4 and output directory must exist.")
+    if any(path.exists() and not path.is_file() for path in outputs):
+        raise ValueError("Output MP4 paths must be files.")
     if not 160 <= max_side <= 1920:
         raise ValueError("max_side must be between 160 and 1920 pixels.")
     if device not in ("auto", "cpu", "cuda"):
@@ -63,10 +69,17 @@ def generate(
     def render(index, frame):
         near = cv2.resize(depth[index], (w, h), interpolation=cv2.INTER_LINEAR)
         near = np.clip((near - low) / max(range_, 1e-6), 0, 1)
-        return warper.stereo(frame, near, strength, focus)
+        yield warper.stereo(frame, near, strength, focus)
+        if rgb_depth_mp4 is not None:
+            gray = np.rint(near * 255).astype(np.uint8)
+            yield np.hstack((frame, cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)))
 
-    with TemporaryDirectory(dir=target.parent, prefix=".stereo-") as directory:
-        staged = Path(directory) / "stereo.mp4"
+    with ExitStack() as stack:
+        staged = tuple(
+            Path(stack.enter_context(TemporaryDirectory(dir=path.parent, prefix=".stereo-"))) / "clip.mp4"
+            for path in outputs
+        )
         media.encode(source, staged, (w, h), spec.rate, len(depth), render)
-        staged.replace(target)
+        for temporary, path in zip(staged, outputs, strict=True):
+            temporary.replace(path)
     return Result(w * 2, h, spec.rate, len(depth), guidance)
