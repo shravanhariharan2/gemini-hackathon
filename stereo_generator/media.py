@@ -1,6 +1,6 @@
-"""Decode local MP4 video and write a browser-compatible full SBS MP4."""
+"""Decode local MP4 video and encode synchronized browser-compatible MP4s."""
 
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from fractions import Fraction
 import json
@@ -103,7 +103,7 @@ def _pipe(command, *, stdin=None, stdout=None):
 
 def encode(
     source: Path,
-    target: Path,
+    targets: tuple[Path, ...],
     size: tuple[int, int],
     rate: Fraction,
     frame_count: int,
@@ -117,16 +117,24 @@ def encode(
         *MP4_INPUT, "-i", str(source), "-map", "0:v:0", "-map", "1:a:0?",
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p",
         "-c:a", "aac", "-movflags", "+faststart",
-        "-t", f"{float(frame_count / rate):.6f}", str(target),
+        "-t", f"{float(frame_count / rate):.6f}",
     ]
-    with _pipe(_decode_command(source, size, rate, frame_count + 1), stdout=subprocess.PIPE) as decoder:
-        with _pipe(command, stdin=subprocess.PIPE) as encoder:
-            for index in range(frame_count):
-                raw = decoder.stdout.read(frame_bytes)
-                if len(raw) != frame_bytes:
-                    raise RuntimeError("The full-resolution stream ended before its depth maps.")
-                frame = np.frombuffer(raw, dtype=np.uint8).reshape(h, w, 3)
-                encoder.stdin.write(render_frame(index, frame).tobytes())
-            if decoder.stdout.read(1):
-                raise RuntimeError("The full-resolution stream has more frames than its depth maps.")
+    with ExitStack() as stack:
+        decoder = stack.enter_context(
+            _pipe(_decode_command(source, size, rate, frame_count + 1), stdout=subprocess.PIPE)
+        )
+        encoders = [
+            stack.enter_context(_pipe([*command, str(target)], stdin=subprocess.PIPE))
+            for target in targets
+        ]
+        for index in range(frame_count):
+            raw = decoder.stdout.read(frame_bytes)
+            if len(raw) != frame_bytes:
+                raise RuntimeError("The full-resolution stream ended before its depth maps.")
+            frame = np.frombuffer(raw, dtype=np.uint8).reshape(h, w, 3)
+            for encoder, packed in zip(encoders, render_frame(index, frame), strict=True):
+                encoder.stdin.write(packed.tobytes())
+        if decoder.stdout.read(1):
+            raise RuntimeError("The full-resolution stream has more frames than its depth maps.")
+        for encoder in encoders:
             encoder.stdin.close()

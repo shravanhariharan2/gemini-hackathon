@@ -28,6 +28,16 @@ The setup downloads the pinned [Video Depth Anything Small](https://github.com/D
 
 The generator estimates temporally consistent relative depth, then shifts pixels horizontally in opposite directions. It cannot see behind foreground objects: fast camera moves and thin structures can still cause edge warping. Use short, continuous POVs for the demo and validate comfort on hardware before shipping.
 
+## Optional RGB+depth export for the look-around viewer
+
+```sh
+python -m stereo_generator ./clip.mp4 ./clip-stereo.mp4 --rgb-depth ./clip-rgb-depth.mp4
+```
+
+The additional MP4 has the same dimensions, frame timestamps, and audio policy as SBS. Its left half is the unwarped source RGB at the processed eye size; its right half is the pixel-aligned grayscale depth map (**white = near, black = far**). Depth is relative and normalized across the whole clip, not a distance in meters. Both outputs use the same decoded frames and a single depth inference pass. Omit `--rgb-depth` to keep the existing SBS-only behavior.
+
+For Python callers, pass `rgb_depth_mp4=output_path` to `generate()`. With the CLI flag, the JSON result also includes `rgb_depth_path` and `rgb_depth_layout: "rgb_left_depth_right_white_near"`.
+
 ## Tests
 
 ```sh
