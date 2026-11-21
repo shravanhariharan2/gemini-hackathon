@@ -45,10 +45,10 @@ export class StereoPreview {
     this.lastKey = key;
     const width = Math.min(
       this.mode === "anaglyph" ? 640 : 960,
-      video.videoWidth / 2,
+      video.videoWidth / (this.layout === 'mono' ? 1 : 2),
     );
     const height = Math.round(
-      width / eyeAspect(video.videoWidth, video.videoHeight),
+      width / (this.layout === 'mono' ? video.videoWidth / video.videoHeight : eyeAspect(video.videoWidth, video.videoHeight)),
     );
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
@@ -60,7 +60,7 @@ export class StereoPreview {
       video,
       (eye * video.videoWidth) / 2,
       0,
-      video.videoWidth / 2,
+      video.videoWidth / (this.layout === 'mono' ? 1 : 2),
       video.videoHeight,
       0,
       0,

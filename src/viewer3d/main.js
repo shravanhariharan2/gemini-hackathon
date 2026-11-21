@@ -88,6 +88,7 @@ function loadClip(url, clipTitle, isLocal = false, format = "sbs") {
   lookaround?.clear();
   stopTilt();
   layout = format;
+  preview.layout = layout;
   $("source-layout").value = layout;
   currentUrl = url;
   title = clipTitle || "Your stereo clip";
@@ -106,13 +107,13 @@ function loadClip(url, clipTitle, isLocal = false, format = "sbs") {
   if (localUrl && localUrl !== url) URL.revokeObjectURL(localUrl);
   localUrl = isLocal ? url : "";
   $("source-url").value = isLocal || [demoUrl, depthDemoUrl, calibrationUrl].includes(url) ? "" : url;
-  selectMode(layout === "rgbd" ? "lookaround" : reducedMotion ? "left" : "wiggle");
+  selectMode(layout === "rgbd" ? "lookaround" : layout === "mono" || reducedMotion ? "left" : "wiggle");
   updateButtons();
 }
 
 video.addEventListener("loadedmetadata", () => {
-  const aspect = eyeAspect(video.videoWidth, video.videoHeight);
-  if (video.videoWidth % 2 !== 0 || !Number.isFinite(video.duration)) {
+  const aspect = layout === "mono" ? video.videoWidth / video.videoHeight : eyeAspect(video.videoWidth, video.videoHeight);
+  if ((layout !== "mono" && video.videoWidth % 2 !== 0) || !Number.isFinite(video.duration)) {
     status(
       "Expected a finite side-by-side clip with an even video width.",
       true,
@@ -123,7 +124,7 @@ video.addEventListener("loadedmetadata", () => {
   $("duration").textContent = formatTime(video.duration);
   $("seek").max = video.duration;
   $("media-info").textContent =
-    `${video.videoWidth} × ${video.videoHeight} · ${layout === "rgbd" ? "RGB + depth · white = near" : "side-by-side · left eye first"}`;
+    `${video.videoWidth} × ${video.videoHeight} · ${layout === "mono" ? "ordinary video · 2D" : layout === "rgbd" ? "RGB + depth · white = near" : "side-by-side · left eye first"}`;
   immersive.resizeScreen();
   lookaround?.resize();
 });
@@ -131,7 +132,7 @@ video.addEventListener("loadedmetadata", () => {
 video.addEventListener("loadeddata", () => {
   ready =
     video.videoWidth > 0 &&
-    video.videoWidth % 2 === 0 &&
+    (layout === "mono" || video.videoWidth % 2 === 0) &&
     Number.isFinite(video.duration);
   $("stage-message").hidden = ready;
   if (lookaround) {
@@ -223,7 +224,7 @@ const modeHelp = {
 };
 function selectMode(mode) {
   if (mode === "lookaround" && (layout !== "rgbd" || lookaroundUnavailable)) mode = "left";
-  if (layout === "rgbd" && ["wiggle", "anaglyph"].includes(mode)) mode = "left";
+  if (layout !== "sbs" && ["wiggle", "anaglyph"].includes(mode)) mode = "left";
   if (mode === "lookaround" && !lookaround) {
     try {
       lookaround = new LookAroundPlayer(video, $("lookaround"), $("stage"), () => { stopTilt(); syncOrbit(); }, () => {
@@ -258,6 +259,10 @@ function selectMode(mode) {
   if (layout === "rgbd" && mode === "left") {
     $("mode-help").textContent = "Original RGB frame. Compare with Look around to see the depth relief.";
     document.querySelector(".mode-label").textContent = "2D preview · original RGB";
+  }
+  if (layout === "mono") {
+    $("mode-help").textContent = "Full original frame. Depth and stereo modes require a depth or stereo clip.";
+    document.querySelector(".mode-label").textContent = "2D preview · original video";
   }
   updateButtons();
 }
@@ -356,6 +361,7 @@ $("share").addEventListener("click", async () => {
   const url = new URL(parent.location.href);
   url.search = "";
   url.searchParams.set(layout === "rgbd" ? "rgbd" : "src", currentUrl);
+  if (layout === "mono") url.searchParams.set("format", "mono");
   url.searchParams.set("title", title);
   try {
     await navigator.clipboard.writeText(url.href);
@@ -421,6 +427,13 @@ async function detectXR() {
   updateButtons();
 }
 detectXR();
+window.addEventListener('message', event => {
+  if (event.source !== parent || event.origin !== parent.location.origin || event.data?.type !== 'viewer3d-clip' || typeof event.data.url !== 'string') return;
+  const url = new URL(event.data.url, parent.location.href);
+  if (url.origin !== parent.location.origin || !/^\/api\/clips\/library\/[^/]+\/media$/.test(url.pathname)) return;
+  loadClip(url.href, event.data.title, false, 'mono');
+});
+parent.postMessage({ type: 'viewer3d-ready' }, parent.location.origin);
 const params = new URLSearchParams(parent.location.search);
 try {
   loadClip(
@@ -434,7 +447,7 @@ try {
         ? "Your stereo clip"
         : "Flower · AI depth look-around"),
     false,
-    params.has("src") && !params.has("rgbd") ? "sbs" : "rgbd",
+    params.has("src") && !params.has("rgbd") ? params.get("format") === "mono" ? "mono" : "sbs" : "rgbd",
   );
 } catch (error) {
   status(error.message, true);
