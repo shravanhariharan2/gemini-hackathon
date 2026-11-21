@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
+from google.genai.errors import APIError
 from PIL import Image
 from character_swap.server import create_app
 
@@ -59,10 +60,40 @@ class APITests(unittest.TestCase):
         page = self.client.get('/')
         self.assertEqual(page.status_code, 200)
         self.assertIn('Who to replace', page.text)
+        self.assertIn('Clips of public figures are blocked by Gemini.', page.text)
         demo = self.client.get('/demo/dancers.mp4')
         self.assertEqual(demo.status_code, 200)
         self.assertEqual(demo.headers['content-type'], 'video/mp4')
         self.assertGreater(len(demo.content), 1000)
+
+    def test_job_error_mapping(self):
+        blocked = "Input blocked: Sorry, we can't create videos with real people's names or likenesses."
+        cases = [
+            (APIError(400, {'error': {'message': blocked, 'code': 'content_blocked'}}), True, None),
+            (RuntimeError(f"Error code: 400 - { {'error': {'message': blocked, 'code': 'content_blocked'}}!r}"), True, None),
+            (RuntimeError('Request rejected for safety reasons'), True, None),
+            (RuntimeError('Gemini returned no video; the request may have been filtered'), True, None),
+            (APIError(429, {'error': {'message': 'Quota exhausted'}}), False, 'Quota exhausted'),
+            (RuntimeError("Error code: 400 - {'error': {'message': 'Invalid input'}}"), False, 'Invalid input'),
+            (RuntimeError('model failed'), False, 'model failed'),
+            (RuntimeError(''), False, ''),
+        ]
+        with patch('character_swap.server.prepare_clip', side_effect=self.prepare):
+            clip = self.upload().json()['clip_id']
+        for error, blocked, expected in cases:
+            with self.subTest(error=str(error)), \
+                 patch('character_swap.server.swap_character', side_effect=error):
+                job = self.client.post('/api/swaps',
+                    files={'photo': ('photo.jpg', self.photo, 'image/jpeg')},
+                    data={'clip_id': clip, 'target': 'right dancer'}).json()
+                result = self.poll(job['job_id'])
+                self.assertEqual(result['status'], 'error')
+                if blocked:
+                    self.assertEqual(result['error_code'], 'content_blocked')
+                    self.assertEqual(result['error'], "Gemini blocked this swap: Omni won't edit clips or photos showing recognizable real people (e.g. public figures). Try a different clip or photo.")
+                else:
+                    self.assertNotIn('error_code', result)
+                    self.assertEqual(result['error'], expected)
 
     def test_errors(self):
         self.assertEqual(self.client.get('/api/swaps/missing').status_code, 404)
