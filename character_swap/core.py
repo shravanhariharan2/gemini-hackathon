@@ -45,7 +45,7 @@ def prepare_clip(src, dst):
         raise ValueError('Video must be at least 3 seconds long')
     try:
         subprocess.run([
-            'ffmpeg', '-v', 'error', '-y', '-i', str(src), '-t', '15',
+            'ffmpeg', '-v', 'error', '-y', '-i', str(src), '-t', '10',
             '-map', '0:v:0', '-an', '-vf',
             "scale=w='min(1280,iw)':h='min(1280,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1",
             '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
@@ -91,10 +91,13 @@ def describe_person(frame_jpeg_bytes, x, y, client):
 def build_prompt(target_description):
     return (
         f'Edit the supplied video. Replace ONLY {target_description} with the person '
-        'in the reference photo. Match their facial identity, hair, glasses and facial '
-        'hair. Keep the original target clothing and body choreography. Preserve all '
-        'other people exactly, the camera, background, lighting, timing, duration and '
-        'framing, and all original motions. Do not add people or cuts.'
+        'in the reference images, which all show the same person. Reproduce their '
+        'facial identity precisely in every frame, including turns: face shape, eyes, '
+        'nose, mouth, jawline, skin tone, hair, glasses and facial hair. Keep the '
+        'target clothing and body choreography. Keep the original scene lighting, '
+        'color grading and other people unchanged; do not relight or recolor the '
+        'scene. Preserve camera, background, timing, duration, framing and all '
+        'original motions. Do not add people or cuts.'
     )
 
 
@@ -113,14 +116,18 @@ def _upload(client, path):
 
 def swap_character(clip_path, photo_path, target_description, out_path, client,
                    model='gemini-omni-1.2-flash'):
+    photos = [photo_path] if isinstance(photo_path, (str, os.PathLike)) else list(photo_path)
+    if not 1 <= len(photos) <= 3:
+        raise ValueError('Provide 1 to 3 reference photos of the same person')
     _, aspect = _video_info(clip_path)
     prompt = build_prompt(target_description)
-    video, photo = _upload(client, clip_path), _upload(client, photo_path)
+    video = _upload(client, clip_path)
+    images = [{'type': 'image', 'uri': _upload(client, photo)} for photo in photos]
     start = time.monotonic()
     response = client.interactions.create(
         model=model,
-        input=[{'type': 'video', 'uri': video}, {'type': 'image', 'uri': photo},
-               {'type': 'text', 'text': prompt}],
+        input=[{'type': 'video', 'uri': video}, *images, {'type': 'text', 'text': prompt}],
+        generation_config={'video_config': {'task': 'edit'}},
         response_format={'type': 'video', 'aspect_ratio': aspect},
         background=False, store=False, stream=False, timeout=600,
     )

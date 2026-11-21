@@ -12,9 +12,11 @@ character_swap/.venv/bin/python -m character_swap
 With your virtual environment activated, run
 `GEMINI_API_KEY=... python -m character_swap` and open **http://localhost:8090**.
 Choose a video or try the bundled sample; click a person on a paused frame,
-refine “Who to replace”, upload a reference photo (or capture a camera selfie),
+refine “Who to replace”, add 1–3 photos of the same person (or capture camera selfies),
 then Swap. The result has synchronized original/swapped playback, a swapped-only
 toggle, and an MP4 download. Camera access requires localhost or HTTPS and permission.
+Use clear, well-lit front, 3/4 and side views for a better likeness. Remove a
+thumbnail to replace it. Clips are trimmed to the first 10 seconds.
 
 Known limit: Omni replaces the head/identity; the original body and clothing stay.
 Generation takes about 50 seconds per 8-second clip (allow roughly a minute).
@@ -27,12 +29,12 @@ Runs on 0.0.0.0:8090 (`PORT` overrides). `CHARACTER_SWAP_WORK_DIR` overrides
 
 API: `POST /api/clips` multipart `video`; POST returned clip ID to
 `/api/clips/{clip_id}/describe` with JPEG `frame` and normalized form `x`, `y`;
-`POST /api/swaps` with `photo` (JPEG/PNG/WebP), `clip_id`, `target`;
+`POST /api/swaps` with 1–3 repeated `photo` fields (JPEG/PNG/WebP), `clip_id`, `target`;
 poll `GET /api/swaps/{job_id}` and fetch `video_url` when done.
 Clip response `url` serves the normalized video. OpenAPI: `/docs`.
 
-Videos: <=200 MiB, at least 3 seconds; first 15 seconds retained, H.264,
-long side <=1280. Photos/frames: <=15 MiB, <=30 megapixels. Audio removed from
+Videos: <=200 MiB, at least 3 seconds; first 10 seconds retained, H.264,
+long side <=1280. Each photo/frame: <=15 MiB, <=30 megapixels. Audio removed from
 input. Output may include generated audio. Replacement keeps target clothes
 and choreography, not necessarily their facial expression or exact pixels.
 Description failures fall back to click position.
