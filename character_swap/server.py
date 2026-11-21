@@ -1,5 +1,6 @@
 """Small, single-process API for local character-swap experiments."""
 
+import ast
 import io
 import os
 from pathlib import Path
@@ -14,6 +15,32 @@ from google import genai
 from PIL import Image, UnidentifiedImageError
 
 from .core import describe_person, prepare_clip, swap_character
+
+
+def _job_error(exc):
+    message = getattr(exc, 'message', None) or str(exc)
+    details = getattr(exc, 'details', None)
+    if message.startswith('Error code:') and ' - ' in message:
+        try:
+            details = ast.literal_eval(message.split(' - ', 1)[1])
+        except (ValueError, SyntaxError):
+            pass
+    if isinstance(details, dict):
+        error = details.get('error', details)
+        if isinstance(error, dict):
+            message = error.get('message') or message
+    signals = f'{message} {details or ""}'.lower()
+    if any(term in signals for term in (
+            'content_blocked', 'safety', 'input blocked', 'output blocked',
+            'blocked by', 'responsible ai', 'prohibited_content', 'content_filtered',
+            'content_filter', 'rai_media_filtered',
+            'no video; the request may have been filtered')):
+        return {
+            'error': "Gemini blocked this swap: Omni won't edit clips or photos showing "
+                     'recognizable real people (e.g. public figures). Try a different clip or photo.',
+            'error_code': 'content_blocked',
+        }
+    return {'error': message}
 
 
 def create_app(work_dir=None, client_factory=None):
@@ -113,7 +140,7 @@ def create_app(work_dir=None, client_factory=None):
         except Exception as exc:
             with lock:
                 jobs[job_id].update(status='error', seconds=time.monotonic()-start,
-                                    error=str(exc))
+                                    **_job_error(exc))
         finally:
             photo.unlink(missing_ok=True)
 
