@@ -112,7 +112,7 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(call['model'], 'gemini-omni-1.2-flash')
         self.assertEqual(call['input'][:2], [{'type': 'video', 'uri': 'clip-uri'},
                                           {'type': 'image', 'uri': 'photo-uri'}])
-        self.assertEqual(call['response_format'], {'type': 'video', 'aspect_ratio': '9:16'})
+        self.assertEqual(call['response_format'], {'type': 'video'})
         self.assertFalse(call['store'])
         self.assertEqual(call['generation_config'], {'video_config': {'task': 'edit'}})
         self.assertEqual(result['prompt'], call['input'][2]['text'])

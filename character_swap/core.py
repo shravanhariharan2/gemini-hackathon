@@ -119,7 +119,6 @@ def swap_character(clip_path, photo_path, target_description, out_path, client,
     photos = [photo_path] if isinstance(photo_path, (str, os.PathLike)) else list(photo_path)
     if not 1 <= len(photos) <= 3:
         raise ValueError('Provide 1 to 3 reference photos of the same person')
-    _, aspect = _video_info(clip_path)
     prompt = build_prompt(target_description)
     video = _upload(client, clip_path)
     images = [{'type': 'image', 'uri': _upload(client, photo)} for photo in photos]
@@ -128,7 +127,7 @@ def swap_character(clip_path, photo_path, target_description, out_path, client,
         model=model,
         input=[{'type': 'video', 'uri': video}, *images, {'type': 'text', 'text': prompt}],
         generation_config={'video_config': {'task': 'edit'}},
-        response_format={'type': 'video', 'aspect_ratio': aspect},
+        response_format={'type': 'video'},
         background=False, store=False, stream=False, timeout=600,
     )
     seconds = time.monotonic() - start
