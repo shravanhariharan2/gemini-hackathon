@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ClipGenMyClips } from './ClipGenMyClips';
+import { ClipGenVideoControls } from './ClipGenVideoControls';
 import type { SavedClip } from '../shared/clipping';
 
 const button = 'inline-flex items-center justify-center rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed';
@@ -18,7 +19,7 @@ export function ClipGenPage() {
   const [clip, setClip] = useState<Clip | null>(null), [photos, setPhotos] = useState<Photo[]>([]);
   const [target, setTarget] = useState(''), [error, setError] = useState(''), [status, setStatus] = useState('Usually about a minute (~50 s per 8 s clip).');
   const [busy, setBusy] = useState(false), [picking, setPicking] = useState(false), [sample, setSample] = useState(false);
-  const [result, setResult] = useState(''), [solo, setSolo] = useState(false), [playing, setPlaying] = useState(false), [ready, setReady] = useState(0);
+  const [result, setResult] = useState(''), [solo, setSolo] = useState(false);
   const [camera, setCamera] = useState<MediaStream | null>(null), [marker, setMarker] = useState<{ x: number; y: number } | null>(null);
   const video = useRef<HTMLVideoElement>(null), original = useRef<HTMLVideoElement>(null), swapped = useRef<HTMLVideoElement>(null), selfie = useRef<HTMLVideoElement>(null);
   const serial = useRef(0), alive = useRef(true), photoRef = useRef(photos), cameraRef = useRef(camera);
@@ -74,7 +75,7 @@ export function ClipGenPage() {
   }
   async function swap() {
     if (!clip) return;
-    setBusy(true); setError(''); setResult(''); setReady(0); setPlaying(false); closeCamera(); video.current?.pause();
+    setBusy(true); setError(''); setResult(''); closeCamera(); video.current?.pause();
     const start = Date.now(); const timer = setInterval(() => setStatus(`Creating your swap · ${Math.floor((Date.now() - start) / 1000)} s elapsed · usually about a minute`), 1000);
     try {
       const form = new FormData(); photos.forEach(p => form.append('photo', p.file)); form.append('clip_id', clip.clip_id); form.append('target', target.trim());
@@ -88,7 +89,6 @@ export function ClipGenPage() {
     } catch (e) { fail(e); setStatus('Could not finish. You can retry with the same inputs.'); }
     finally { clearInterval(timer); setBusy(false); }
   }
-  function stop() { original.current?.pause(); swapped.current?.pause(); setPlaying(false); }
   return <div className="min-h-screen bg-slate-50 text-slate-900">
     <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4"><a href="/" className="font-display font-bold text-lg">ClipThat</a><nav className="flex gap-5 text-sm font-medium"><a href="/">← Studio</a><a href="/3d">3D View</a><span>Clip Gen</span></nav></header>
     <main className="mx-auto max-w-6xl px-5 py-10 space-y-6">
@@ -97,7 +97,7 @@ export function ClipGenPage() {
       <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
         <section className={card}><h2 className="font-display text-xl font-bold">01 · Choose your clip</h2><div className="flex flex-wrap gap-2"><label className={button}>Upload video<input hidden disabled={busy} type="file" accept="video/mp4,video/quicktime,video/webm,video/x-matroska" onChange={e => { if (e.target.files?.[0]) void load(e.target.files[0]); e.target.value = ''; }} /></label><button className={button} disabled={busy} onClick={async () => { try { const r = await fetch('/dancers.mp4'); if (!r.ok) throw new Error('Could not load sample'); await load(new File([await r.blob()], 'dancers.mp4', { type: 'video/mp4' }), true); } catch (e) { fail(e); } }}>Try sample clip</button></div><p className="text-sm text-slate-500">MP4, MOV, WebM · up to 200 MB · minimum 3 seconds</p>
           <div className="min-h-52 rounded-xl bg-slate-950 flex items-center justify-center overflow-hidden">{clip ? <div className="relative w-full"><video ref={video} src={clip.url} playsInline className="w-full cursor-crosshair" onClick={pick} onPlay={() => setMarker(null)} />{marker && <span className="pointer-events-none absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-red-500" style={{ left: `${marker.x * 100}%`, top: `${marker.y * 100}%` }} />}</div> : <span className="text-slate-400">Your scene starts here</span>}</div>
-          {clip && <><div className="flex gap-3"><button className={button} onClick={() => { const v = video.current!; if (v.paused) void v.play().catch(fail); else v.pause(); }}>Play / pause</button><input aria-label="Clip position" className="min-w-0 flex-1" type="range" min="0" max={clip.duration} step="0.01" defaultValue="0" onChange={e => { video.current!.currentTime = Number(e.target.value); setMarker(null); }} /></div><p className="text-sm text-slate-500">{clip.duration.toFixed(1)} s · {clip.aspect_ratio} · first 10 seconds retained</p></>}
+          {clip && <><ClipGenVideoControls primary={video} source={clip.url} label="Source video" onError={fail} /><p className="text-sm text-slate-500">{clip.duration.toFixed(1)} s · {clip.aspect_ratio} · first 10 seconds retained</p></>}
           {sample && <p className="text-xs text-slate-500">Video by <a className="underline" href="https://www.pexels.com/video/two-women-dancing-and-hugging-4800574/">Anna Shvets, Pexels</a> · <a className="underline" href="https://www.pexels.com/license/">Pexels license</a></p>}
           <ClipGenMyClips disabled={busy || picking} onSelect={saved => void loadSaved(saved)} />
         </section>
@@ -107,7 +107,7 @@ export function ClipGenPage() {
             <div className="flex gap-3">{photos.map((p, i) => <figure key={p.url}><img src={p.url} alt={`Reference photo ${i + 1}`} className="h-20 w-20 rounded-lg object-cover" /><button disabled={busy} className="text-xs underline" aria-label={`Remove reference photo ${i + 1}`} onClick={() => { URL.revokeObjectURL(p.url); setPhotos(photos.filter(q => q !== p)); }}>Remove</button></figure>)}</div><p className="text-xs text-slate-500">{photos.length}/3 selected</p>
           </section><section className={card}><h2 className="font-display text-xl font-bold">04 · Make the swap</h2><p className="text-sm text-slate-500">Replace the whole person: identity, body, skin tone and clothing follow your references. Original motion and scene stay. Public figures are blocked by Gemini. Only use photos you have permission to use.</p><button className={`${button} bg-slate-950 text-white hover:bg-slate-800`} disabled={busy || picking || !clip || !photos.length || !target.trim()} onClick={() => void swap()}>{busy ? 'Working…' : 'Swap character ↗'}</button><p role="status" className="text-sm text-slate-500">{status}</p></section></div>
       </div>
-      {result && <section className={card}><div className="flex justify-between items-center"><h2 className="font-display text-2xl font-bold">The result</h2><a className={button} href={result} download="character-swap.mp4">Download MP4 ↓</a></div><div className="flex items-center gap-4"><button className={button} disabled={ready < 2} onClick={async () => { if (playing) { stop(); return; } const a = original.current!, b = swapped.current!; if (b.ended) b.currentTime = 0; a.currentTime = b.currentTime; try { await Promise.all([a.play(), b.play()]); setPlaying(true); } catch (e) { stop(); fail(e); } }}>{playing ? 'Pause' : solo ? 'Play swapped' : 'Play both'}</button><label className="text-sm"><input type="checkbox" checked={solo} onChange={e => setSolo(e.target.checked)} /> Swapped only</label></div><div className={`grid gap-4 ${solo ? '' : 'md:grid-cols-2'}`}><figure hidden={solo}><figcaption className="text-xs mb-2 text-slate-500">ORIGINAL</figcaption><video ref={original} src={clip?.url} muted playsInline onLoadedData={() => setReady(n => n + 1)} onEnded={stop} className="w-full rounded-xl" /></figure><figure><figcaption className="text-xs mb-2 text-slate-500">SWAPPED</figcaption><video ref={swapped} src={result} muted playsInline onLoadedData={() => setReady(n => n + 1)} onEnded={stop} onTimeUpdate={() => { if (playing && original.current && swapped.current && Math.abs(original.current.currentTime - swapped.current.currentTime) > .08) original.current.currentTime = swapped.current.currentTime; }} onError={() => setError('Could not load result video. Use Download to save it.')} className="w-full rounded-xl" /></figure></div><p className="text-sm text-slate-500">Synchronized playback · audio muted for comparison</p></section>}
+      {result && <section className={card}><div className="flex justify-between items-center"><h2 className="font-display text-2xl font-bold">The result</h2><a className={button} href={result} download="character-swap.mp4">Download MP4 ↓</a></div><label className="text-sm"><input type="checkbox" checked={solo} onChange={e => setSolo(e.target.checked)} /> Swapped only</label><div className={`grid gap-4 ${solo ? '' : 'md:grid-cols-2'}`}><figure hidden={solo}><figcaption className="text-xs mb-2 text-slate-500">ORIGINAL</figcaption><video ref={original} src={clip?.url} muted playsInline className="w-full rounded-xl" /></figure><figure><figcaption className="text-xs mb-2 text-slate-500">SWAPPED</figcaption><video ref={swapped} src={result} muted playsInline onError={() => setError('Could not load result video. Use Download to save it.')} className="w-full rounded-xl" /></figure></div><ClipGenVideoControls primary={swapped} secondary={original} source={result} label="Comparison video" onError={fail} /><p className="text-sm text-slate-500">Synchronized playback · audio muted for comparison</p></section>}
     </main>
   </div>;
 }
