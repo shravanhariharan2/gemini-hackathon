@@ -14,16 +14,17 @@
       <span class="top-note">A new dimension for your highlights</span>
     </header>
     <main>
-      <div class="heading"><div><p class="eyebrow">BEYOND THE FRAME</p><h1>Your clips. More immersive.</h1><p class="intro">Watch here, or step inside with your headset.</p></div><button id="sample" class="secondary" type="button">Try stereo sample <span aria-hidden="true">↗</span></button></div>
+      <div class="heading"><div><p class="eyebrow">BEYOND THE FRAME</p><h1>Your clips. More immersive.</h1><p class="intro">A real generated clip. A new way to see it.</p></div><div class="sample-actions"><button id="sample" class="secondary" type="button">Flower demo <span aria-hidden="true">↗</span></button><button id="calibration" class="text-button" type="button">Calibration cube</button></div></div>
+      <div class="depth-guide"><strong>No headset? Start with Wiggle.</strong><span>It alternates the two eye views to reveal depth. Binocular 3D needs red/cyan glasses or a VR headset.</span></div>
       <div class="layout">
         <section class="player-card" aria-label="Clip player">
-          <div class="player-top"><div><span class="live-dot" aria-hidden="true"></span><span id="clip-title">Stereo sample</span></div><span class="mode-label">2D preview · left eye</span></div>
+          <div class="player-top"><div><span class="live-dot" aria-hidden="true"></span><span id="clip-title">Generated flower clip</span></div><span class="mode-label">Depth preview · wiggle</span></div>
           <div id="stage" class="stage">
             <video id="video" crossorigin="anonymous" playsinline preload="auto" aria-hidden="true" tabindex="-1"></video>
             <canvas id="preview" aria-label="Stereo clip preview"></canvas>
-            <div id="stage-message" class="stage-message">Loading stereo sample…</div>
+            <div id="stage-message" class="stage-message">Loading generated clip…</div>
           </div>
-          <div class="view-modes" role="group" aria-label="Preview mode"><button data-mode="left" aria-pressed="true">2D preview</button><button data-mode="wiggle" aria-pressed="false">Wiggle</button><button data-mode="anaglyph" aria-pressed="false">Red / cyan</button><span id="mode-help">One eye, natural proportions.</span></div>
+          <div class="view-modes" role="group" aria-label="Preview mode"><button data-mode="left" aria-pressed="true">2D · flat</button><button data-mode="wiggle" aria-pressed="false">Wiggle · no glasses</button><button data-mode="anaglyph" aria-pressed="false">Red / cyan · glasses</button><span id="mode-help">One eye, natural proportions.</span></div>
           <div class="playback">
             <button id="play" class="icon-button" aria-label="Play" disabled><span aria-hidden="true">▶</span></button>
             <span id="current-time" class="time">0:00</span>

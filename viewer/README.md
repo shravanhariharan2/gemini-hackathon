@@ -31,8 +31,10 @@ window.location.href = viewer;
 
 Example: `/viewer/?src=https%3A%2F%2Fcdn.example.com%2Fclip-sbs.mp4&title=Highlight`.
 The link points to a directly playable file, not a web page or an HLS playlist.
-The viewer also opens local files (not uploaded) and includes a six-second,
-original synthetic stereo camera-pair sample. No AI provider calls are made here.
+The viewer also opens local files (not uploaded). It opens with the real five-second
+flower clip converted by this project's AI-depth stereo generator. The calibration
+cube button opens the original six-second synthetic stereo camera pair. No AI
+provider calls are made by the viewer itself.
 
 Media contract:
 
@@ -48,7 +50,8 @@ Media contract:
 ## No-headset checks
 
 - **2D preview:** crops the left eye at its correct aspect ratio.
-- **Wiggle:** alternates the same frame's eyes every 170ms; works while paused too.
+- **Wiggle (default):** alternates the same frame's eyes every 170ms; works while
+  paused too. Reduced-motion users start in 2D and can explicitly choose wiggle.
 - **Red / cyan:** grayscale anaglyph, red lens on the left eye. Without inexpensive
   filter glasses it shows stereo offsets but cannot give binocular depth perception.
 - **Check frame:** detects duplicate eyes, searches textured patches for horizontal

@@ -6,7 +6,8 @@ import { analyzeStereo } from './analysis.js';
 
 const $ = (id) => document.getElementById(id);
 const video = $('video');
-const demoUrl = new URL(`${import.meta.env.BASE_URL}demo/stereo-check.mp4`, location.href).href;
+const demoUrl = new URL(`${import.meta.env.BASE_URL}demo/flower-sbs.mp4`, location.href).href;
+const calibrationUrl = new URL(`${import.meta.env.BASE_URL}demo/stereo-check.mp4`, location.href).href;
 let currentUrl = '', localUrl = '', title = '', ready = false;
 const support = { 'immersive-vr': false, 'immersive-ar': false };
 
@@ -37,6 +38,7 @@ function loadClip(url, clipTitle, isLocal = false) {
   video.pause();
   ready = false;
   preview.failed = false;
+  preview.reset();
   currentUrl = url;
   title = clipTitle || 'Your stereo clip';
   $('clip-title').textContent = title;
@@ -77,6 +79,8 @@ video.addEventListener('loadeddata', () => {
 
 video.addEventListener('error', () => {
   ready = false;
+  preview.failed = true;
+  preview.reset();
   $('stage-message').textContent = 'Couldn’t open this clip';
   $('stage-message').hidden = false;
   status(mediaErrorMessage(video.error), true);
@@ -116,12 +120,14 @@ $('fullscreen').addEventListener('click', async () => {
 });
 
 const modeHelp = { left: 'One eye, natural proportions.', wiggle: 'Alternates eyes ~3 times/sec. Look for depth, not scene jumps.', anaglyph: 'Red lens: left eye. Cyan lens: right eye.' };
-document.querySelectorAll('[data-mode]').forEach((button) => button.addEventListener('click', () => {
-  preview.setMode(button.dataset.mode);
-  document.querySelectorAll('[data-mode]').forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
-  $('mode-help').textContent = modeHelp[button.dataset.mode];
-  document.querySelector('.mode-label').textContent = button.textContent;
-}));
+function selectMode(mode) {
+  preview.setMode(mode);
+  document.querySelectorAll('[data-mode]').forEach((item) => item.setAttribute('aria-pressed', String(item.dataset.mode === mode)));
+  $('mode-help').textContent = modeHelp[mode];
+  document.querySelector('.mode-label').textContent = mode === 'wiggle' ? 'Depth preview · wiggle' : mode === 'anaglyph' ? '3D glasses · red / cyan' : '2D preview · left eye';
+}
+document.querySelectorAll('[data-mode]').forEach((button) => button.addEventListener('click', () => selectMode(button.dataset.mode)));
+selectMode(matchMedia('(prefers-reduced-motion: reduce)').matches ? 'left' : 'wiggle');
 
 $('check-stereo').addEventListener('click', () => {
   try {
@@ -144,7 +150,8 @@ $('file').addEventListener('change', () => {
   if (file) loadClip(URL.createObjectURL(file), file.name, true);
   $('file').value = '';
 });
-$('sample').addEventListener('click', () => loadClip(demoUrl, 'Stereo sample · orbit study'));
+$('sample').addEventListener('click', () => loadClip(demoUrl, 'Generated flower clip · AI depth conversion'));
+$('calibration').addEventListener('click', () => loadClip(calibrationUrl, 'Calibration cube · synthetic stereo'));
 $('share').addEventListener('click', async () => {
   const url = new URL(location.href);
   url.search = '';
@@ -180,5 +187,5 @@ async function detectXR() {
 detectXR();
 const params = new URLSearchParams(location.search);
 try {
-  loadClip(params.has('src') ? resolveMediaUrl(params.get('src'), location.href) : demoUrl, params.get('title') || 'Stereo sample · orbit study');
+  loadClip(params.has('src') ? resolveMediaUrl(params.get('src'), location.href) : demoUrl, params.get('title') || (params.has('src') ? 'Your stereo clip' : 'Generated flower clip · AI depth conversion'));
 } catch (error) { status(error.message, true); $('stage-message').textContent = 'Open a stereo clip to start'; }

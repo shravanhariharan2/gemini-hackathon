@@ -22,6 +22,11 @@ export class StereoPreview {
 
   setMode(mode) { this.mode = mode; this.failed = false; }
 
+  reset() {
+    this.lastKey = null;
+    this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  }
+
   draw(time) {
     const { video, canvas, context } = this;
     const eye = this.mode === 'wiggle' ? Math.floor(time / 170) % 2 : 0;
