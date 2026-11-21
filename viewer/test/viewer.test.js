@@ -35,7 +35,7 @@ test('VR textures select correct source halves with exclusive left/right camera 
   assert.equal(right.material.map.repeat.x, 0.5);
   assert.equal(left.material.map.offset.x, 0);
   assert.equal(right.material.map.offset.x, 0.5);
-  assert.equal(screen.group.scale.x / screen.group.scale.y, 16 / 9);
+  assert.ok(Math.abs(screen.group.scale.x / screen.group.scale.y - 16 / 9) < 1e-12);
   // A transformed UV at the middle of each plane must hit its own source eye.
   left.material.map.updateMatrix();
   right.material.map.updateMatrix();
