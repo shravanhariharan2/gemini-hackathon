@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { AppHeader } from './AppHeader';
 import {
   ArrowRight,
   Clock,
@@ -34,6 +35,8 @@ import type {
 } from '../utils/types';
 
 interface JoinStreamGateProps {
+  onOpenMyClips: () => void;
+  clipCount: number;
   initialRoomId: string;
   initialRole: ParticipantRole;
   avatar: AnimalAvatarOption;
@@ -54,6 +57,8 @@ interface JoinStreamGateProps {
 }
 
 export function JoinStreamGate({
+  onOpenMyClips,
+  clipCount,
   initialRoomId,
   initialRole,
   avatar,
@@ -170,17 +175,8 @@ export function JoinStreamGate({
 
   return (
     <div className="min-h-screen bg-[#FAFAFB] text-slate-950 flex flex-col">
-      {/* Clean Twitch-style White Lobby Header */}
-      <header className="h-14 md:h-16 bg-white border-b border-slate-200/80 px-4 md:px-8 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-rose-600" aria-hidden="true" />
-          <span className="font-display font-bold tracking-tight text-slate-950 text-lg">
-            ClipThat
-            <a href="/3d" className="ml-5 text-sm font-medium text-slate-500 hover:text-slate-950">3D View ↗</a>
-            <a href="/clip-gen" className="ml-5 text-sm font-medium text-slate-500 hover:text-slate-950">Clip Gen ↗</a>
-          </span>
-        </div>
-
+      <AppHeader current="/">
+        <button type="button" onClick={onOpenMyClips} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium">My Clips ({clipCount})</button>
         <div className="flex items-center gap-4 text-xs text-slate-500 tabular-nums">
           <span className="inline-flex items-center gap-1.5">
             <span
@@ -210,7 +206,7 @@ export function JoinStreamGate({
             <span className="hidden sm:inline">Refresh</span>
           </button>
         </div>
-      </header>
+      </AppHeader>
 
       {/* Main Two-Column Lobby */}
       <main className="flex-1 w-full max-w-6xl mx-auto px-4 md:px-8 py-6 md:py-8 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 md:gap-8 items-start">

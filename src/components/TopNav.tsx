@@ -1,5 +1,6 @@
 import { Check, LogOut } from 'lucide-react';
 import type { ParticipantRole } from '../utils/types';
+import { AppHeader } from './AppHeader';
 
 interface TopNavProps {
   isLive: boolean;
@@ -25,16 +26,9 @@ export function TopNav({
   onLeaveRoom,
 }: TopNavProps) {
   return (
-    <header className="h-14 md:h-16 shrink-0 bg-white border-b border-slate-200/80 px-3.5 md:px-6 flex items-center justify-between gap-3 md:gap-8">
-      {/* Zone 1: Single text element wordmark */}
-      <span className="font-display text-base md:text-lg font-bold tracking-tight text-slate-950 whitespace-nowrap shrink-0">
-        ClipThat
-      </span>
-
+    <AppHeader current="/">
       {/* Zone 2: Clean single-line room actions */}
       <nav aria-label="Studio actions" className="flex items-center gap-3.5 sm:gap-6 md:gap-7">
-        <a href="/3d" className="text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-950 whitespace-nowrap">3D View</a>
-        <a href="/clip-gen" className="text-xs sm:text-sm font-medium text-slate-600 hover:text-slate-950 whitespace-nowrap">Clip Gen</a>
         <button
           type="button"
           onClick={onCopyInvite}
@@ -90,6 +84,6 @@ export function TopNav({
           </button>
         )}
       </div>
-    </header>
+    </AppHeader>
   );
 }

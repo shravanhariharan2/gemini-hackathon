@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ClipGenMyClips } from './ClipGenMyClips';
+import { AppHeader } from './AppHeader';
 import { ClipGenVideoControls } from './ClipGenVideoControls';
 import type { SavedClip } from '../shared/clipping';
 
@@ -90,7 +91,7 @@ export function ClipGenPage() {
     finally { clearInterval(timer); setBusy(false); }
   }
   return <div className="min-h-screen bg-slate-50 text-slate-900">
-    <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4"><a href="/" className="font-display font-bold text-lg">ClipThat</a><nav className="flex gap-5 text-sm font-medium"><a href="/">← Studio</a><a href="/3d">3D View</a><span>Clip Gen</span></nav></header>
+    <AppHeader current="/clip-gen" />
     <main className="mx-auto max-w-6xl px-5 py-10 space-y-6">
       <div><p className="text-xs font-semibold tracking-widest text-slate-500">GEMINI OMNI · EXPERIMENT</p><h1 className="font-display text-4xl font-bold mt-3">Step into the scene.</h1><p className="mt-3 text-slate-500">Pick a person. Add a face. Keep the moment.</p></div>
       {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-700">{error}</p>}
