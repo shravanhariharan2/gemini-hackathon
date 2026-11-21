@@ -1,5 +1,5 @@
-import * as THREE from 'three';
-import { eyeAspect } from './media.js';
+import * as THREE from "three";
+import { eyeAspect } from "./media.js";
 
 // Both textures use ONE video element: frames, seeking and sound stay in sync.
 export function createStereoScreen(video) {
@@ -13,7 +13,11 @@ export function createStereoScreen(video) {
     return texture;
   });
   textures.forEach((map, index) => {
-    const material = new THREE.MeshBasicMaterial({ map, side: THREE.DoubleSide, toneMapped: false });
+    const material = new THREE.MeshBasicMaterial({
+      map,
+      side: THREE.DoubleSide,
+      toneMapped: false,
+    });
     const mesh = new THREE.Mesh(geometry, material);
     // Three's WebXRManager enables layer 1 for left and 2 for right.
     mesh.layers.set(index + 1);
@@ -42,6 +46,8 @@ export function placeScreenInFront(screen, camera) {
   const rotation = new THREE.Quaternion();
   camera.getWorldPosition(position);
   camera.getWorldQuaternion(rotation);
-  screen.position.copy(new THREE.Vector3(0, 0, -3.2).applyQuaternion(rotation).add(position));
+  screen.position.copy(
+    new THREE.Vector3(0, 0, -3.2).applyQuaternion(rotation).add(position),
+  );
   screen.quaternion.copy(rotation);
 }
