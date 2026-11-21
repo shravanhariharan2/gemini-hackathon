@@ -9,6 +9,18 @@ export GEMINI_API_KEY=your-key
 character_swap/.venv/bin/python -m character_swap
 ```
 
+With your virtual environment activated, run
+`GEMINI_API_KEY=... python -m character_swap` and open **http://localhost:8090**.
+Choose a video or try the bundled sample; click a person on a paused frame,
+refine “Who to replace”, upload a reference photo (or capture a camera selfie),
+then Swap. The result has synchronized original/swapped playback, a swapped-only
+toggle, and an MP4 download. Camera access requires localhost or HTTPS and permission.
+
+Known limit: Omni replaces the head/identity; the original body and clothing stay.
+Generation takes about 50 seconds per 8-second clip (allow roughly a minute).
+The bundled demo is by [Anna Shvets, Pexels](https://www.pexels.com/video/two-women-dancing-and-hugging-4800574/),
+used under the [Pexels license](https://www.pexels.com/license/).
+
 Runs on 0.0.0.0:8090 (`PORT` overrides). `CHARACTER_SWAP_WORK_DIR` overrides
 `character_swap/.work/`; `CHARACTER_SWAP_DESCRIBE_MODEL` overrides
 `gemini-4-hydrogen`. Swap model defaults to `gemini-omni-1.2-flash`.
@@ -29,7 +41,7 @@ Jobs and clip IDs are in memory: use one server process, no reload/workers.
 Restart loses IDs; work files remain. Remove the work directory manually when
 finished. Uploads are sent to Gemini Files API and subject to its retention.
 This lean hackathon service has no auth, quotas or durable queue; run only in
-a trusted environment, not as a public upload service. No frontend yet.
+a trusted environment, not as a public upload service.
 
 Offline tests (no key/network):
 ```sh
